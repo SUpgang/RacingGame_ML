@@ -1,1 +1,7 @@
 # PythonProject
+
+Ziel:
+
+Zwischenziele:
+
+Aufgaben:
