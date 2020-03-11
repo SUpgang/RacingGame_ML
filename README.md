@@ -1,7 +1,7 @@
 # PythonProject
 
-Ziel:
+Ziel:Auf jeden Fall was geiles!
 
 Zwischenziele:
 
-Aufgaben:
+Aufgaben: @Philipp: Sich was geiles überlegen.
