@@ -1,19 +1,30 @@
-import pygame as pg
+import pygame
 import mycolors
 
 # Initialize pygame
-pg.init()
-pg.font.init()
+pygame.init()
+pygame.font.init()
 
 # Create the screen
-screen = pg.display.set_mode((800, 600))
-pg.display.set_caption('Python Project')
-myfont = pg.font.SysFont('Comic Sans MS', 20)
+screen = pygame.display.set_mode((800, 600))
+pygame.display.set_caption('Python Project')
+myfont = pygame.font.SysFont('Comic Sans MS', 20)
 
 # globale game variables
 game_live = True
 
-myRect = pg.Rect(100, 100, 50, 50)
+myRect = pygame.Rect(100, 100, 50, 50)
 
 while game_live:
-    pg.draw.rect(screen, mycolors.green, myRect)
+
+    # Check for events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            game_live = False
+
+    # Draw things
+    pygame.draw.rect(screen, mycolors.green, myRect)
+    pygame.display.flip()
+
+# Quit game after loop
+pygame.quit()
