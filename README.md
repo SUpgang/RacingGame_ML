@@ -12,3 +12,8 @@
 
 ## Aufgaben: 
 @Philipp: Sich was geiles überlegen.
+
+## Hilfreiche Links:
+
+### Git Guide
+https://guides.github.com/introduction/flow/
