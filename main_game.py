@@ -14,7 +14,7 @@ screen = pygame.display.set_mode((SCREEN_HEIGHT, SCREEN_WIDTH))
 pygame.display.set_caption('Python Project')
 myfont = pygame.font.SysFont('Comic Sans MS', FONT_SIZE)
 
-# globale game variables
+# global game variables
 game_live = True
 
 # Test Area
@@ -27,8 +27,12 @@ while game_live:
         if event.type == pygame.QUIT:
             game_live = False
 
+    myRect.x += 10
+    myRect.y += 10
+
     # Draw things
     pygame.draw.rect(screen, mycolors.green, myRect)
+
     pygame.display.flip()
 
 # Quit game after loop
