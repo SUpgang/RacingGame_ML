@@ -18,7 +18,7 @@ myfont = pygame.font.SysFont('Comic Sans MS', FONT_SIZE)
 game_live = True
 
 # Test Area
-myRect = pygame.Rect(100, 100, 50, 50)
+myRect = pygame.Rect(200, 100, 50, 50)
 
 while game_live:
 
