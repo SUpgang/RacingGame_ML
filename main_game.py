@@ -1,39 +1,71 @@
 import pygame
 import mycolors
+import time
 
 # Initialize pygame
 pygame.init()
 pygame.font.init()
 
-SCREEN_HEIGHT = 800
-SCREEN_WIDTH = 600
+myclock = pygame.time.Clock()
+FPS = 120
+
+SCREEN_HEIGHT = 500
+SCREEN_WIDTH = 800
 FONT_SIZE = 20
 
 # Create the screen
-screen = pygame.display.set_mode((SCREEN_HEIGHT, SCREEN_WIDTH))
-pygame.display.set_caption('Python Project')
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption('The Racing Game')
 myfont = pygame.font.SysFont('Comic Sans MS', FONT_SIZE)
 
 # global game variables
 game_live = True
 
-# Test Area
-myRect = pygame.Rect(200, 100, 50, 50)
+# Import images for lanes and cars
+lane_image = pygame.image.load('street_sprite.png')
+lane_height = 500
+lane_width = 100
+
+car_image = pygame.image.load('car_sprite.png')
+car_height = 100
+car_width = 60
+
+# Game settings
+number_of_lanes = 8
+car_starting_lane = 1
+car_current_lane = car_starting_lane
+tick = 0
+delta_px_per_tick = 1
+cycle = int(lane_height/delta_px_per_tick)
 
 while game_live:
+    myclock.tick(FPS)
+    # time.sleep(0.01)
+
+    # Delete previous content
+    screen.fill(mycolors.white)
+
+    # Fill up the streets:
+    for i in range(number_of_lanes):
+        screen.blit(lane_image, (lane_width*i, delta_px_per_tick*tick%cycle))
+        screen.blit(lane_image, (lane_width*i, -lane_height+delta_px_per_tick*tick%cycle))
+
+    screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
 
     # Check for events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game_live = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                car_current_lane = max(1, car_current_lane - 1)
+            if event.key == pygame.K_RIGHT:
+                car_current_lane = min(number_of_lanes, car_current_lane + 1)
 
-    myRect.x += 10
-    myRect.y += 10
-
-    # Draw things
-    pygame.draw.rect(screen, mycolors.green, myRect)
-
+    # Show drawings on screen
     pygame.display.flip()
+    tick += 1
 
 # Quit game after loop
 pygame.quit()
+quit()
