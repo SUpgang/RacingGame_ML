@@ -59,12 +59,16 @@ while game_live:
 
     for i in range(len(list_of_enemies)):
         list_of_enemies[i].update_position()
+    #[expression for item in list if conditional]
 
     if np.random.binomial(1, 0.01) == True:
         enemy = mc.Enemy(np.random.randint(0, number_of_lanes+1), 'car_enemy.png')
         list_of_enemies.append(enemy)
-    for i in range(len(list_of_enemies)):
-        screen.blit(list_of_enemies[i].image, (list_of_enemies[i].pos_x, list_of_enemies[i].pos_y))
+
+    for i,e in enumerate(list_of_enemies):
+        if e.pos_y>SCREEN_HEIGHT:
+            list_of_enemies.pop(i)
+        screen.blit(e.image, (e.pos_x, e.pos_y))
 
 
     # Check for events
