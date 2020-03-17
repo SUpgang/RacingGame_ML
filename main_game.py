@@ -1,5 +1,6 @@
 import pygame
 import mycolors
+import random
 import MyClasses
 
 # Initialize pygame
@@ -7,7 +8,7 @@ pygame.init()
 pygame.font.init()
 
 myclock = pygame.time.Clock()
-FPS = 120
+FPS = 60
 
 SCREEN_HEIGHT = 500
 SCREEN_WIDTH = 800
@@ -31,16 +32,17 @@ car_height = 100
 car_width = 60
 
 # Game settings
-number_of_lanes = 6
+number_of_lanes = 8
 car_starting_lane = 1
 car_current_lane = car_starting_lane
 tick = 0
-delta_px_per_tick = 1
+delta_px_per_tick = 2
 cycle = int(lane_height/delta_px_per_tick)
+p = 0
+enemy_list = []
 
 while game_live:
     myclock.tick(FPS)
-    # time.sleep(0.01)
 
     # Delete previous content
     screen.fill(mycolors.white)
@@ -52,6 +54,21 @@ while game_live:
         screen.blit(lane_image, (lane_width*i, -lane_height + shift_px_y))
 
     screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
+    # 20 px
+
+    # Create enemies
+    if random.random() < p:
+        starting_lane = random.randint(1, number_of_lanes)
+        enemy_list.append(MyClasses.Enemy(starting_lane=starting_lane))
+        p = 0
+    else:
+        p += round(1 / ((len(enemy_list)+1)*FPS*100),6)
+
+    for i, enemy in enumerate(enemy_list):
+        enemy.update_position()
+        screen.blit(enemy.image, (enemy.pos_x, enemy.pos_y))
+        if enemy.pos_y > 500:
+            enemy_list.pop(i)
 
     # Check for events
     for event in pygame.event.get():
