@@ -40,12 +40,14 @@ delta_px_per_tick = 2
 cycle = int(lane_height/delta_px_per_tick)
 p = 0
 enemy_list = []
+player_collision_rect = pygame.Rect((20, 400), (60, 100))
+player_alive = True
 
 while game_live:
     myclock.tick(FPS)
 
     # Delete previous content
-    screen.fill(mycolors.white)
+    screen.fill(mycolors.black)
 
     # Fill up the streets:
     for i in range(number_of_lanes):
@@ -53,22 +55,39 @@ while game_live:
         screen.blit(lane_image, (lane_width*i, shift_px_y))
         screen.blit(lane_image, (lane_width*i, -lane_height + shift_px_y))
 
-    screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
-    # 20 px
+    player_pos_x, player_pos_y = lane_width*(car_current_lane-1) + 20, 400
+    screen.blit(car_image, (player_pos_x, player_pos_y))
+    player_collision_rect = pygame.Rect((player_pos_x, player_pos_y), (60, 100))
+    #pygame.draw.rect(screen, mycolors.black, player_collision_rect, 1)
 
     # Create enemies
     if random.random() < p:
         starting_lane = random.randint(1, number_of_lanes)
-        enemy_list.append(MyClasses.Enemy(starting_lane=starting_lane))
+        new_enemy = MyClasses.Enemy(starting_lane=starting_lane)
+        #print('Try to spawn new car at lane {}'.format(starting_lane))
+
+        spawning_collision = False
+        for enemy in enemy_list:
+            if new_enemy.collision_rect.colliderect(enemy.collision_rect):
+                spawning_collision = True
+                #print('Did not spawn at lane {}'.format(starting_lane))
+
+        if not spawning_collision:
+            enemy_list.append(new_enemy)
         p = 0
     else:
-        p += round(1 / ((len(enemy_list)+1)*FPS*100),6)
+        p += round(1 / ((len(enemy_list)+1)*FPS*50),6)
 
     for i, enemy in enumerate(enemy_list):
-        enemy.update_position()
+        if player_alive:
+            enemy.update_position()
         screen.blit(enemy.image, (enemy.pos_x, enemy.pos_y))
-        if enemy.pos_y > 500:
+        #pygame.draw.rect(screen, mycolors.black, enemy.collision_rect, 1)
+        if enemy.pos_y > SCREEN_HEIGHT:
             enemy_list.pop(i)
+        if player_collision_rect.colliderect(enemy.collision_rect):
+            player_alive = False
+            #print("dead at tick {}".format(tick))
 
     # Check for events
     for event in pygame.event.get():
@@ -82,7 +101,8 @@ while game_live:
 
     # Show drawings on screen
     pygame.display.flip()
-    tick += 1
+    if player_alive:
+        tick += 1
 
 # Quit game after loop
 pygame.quit()
