@@ -1,6 +1,6 @@
 import pygame
 import mycolors
-import time
+import MyClasses
 
 # Initialize pygame
 pygame.init()
@@ -47,8 +47,9 @@ while game_live:
 
     # Fill up the streets:
     for i in range(number_of_lanes):
-        screen.blit(lane_image, (lane_width*i, delta_px_per_tick*tick%cycle))
-        screen.blit(lane_image, (lane_width*i, -lane_height+delta_px_per_tick*tick%cycle))
+        shift_px_y = delta_px_per_tick*tick%cycle
+        screen.blit(lane_image, (lane_width*i, shift_px_y))
+        screen.blit(lane_image, (lane_width*i, -lane_height + shift_px_y))
 
     screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
 
