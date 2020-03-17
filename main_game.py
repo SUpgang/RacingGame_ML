@@ -9,7 +9,7 @@ pygame.init()
 pygame.font.init()
 
 myclock = pygame.time.Clock()
-FPS = 120
+FPS = 60
 
 SCREEN_HEIGHT = 500
 SCREEN_WIDTH = 800
@@ -37,7 +37,7 @@ number_of_lanes = 8
 car_starting_lane = 1
 car_current_lane = car_starting_lane
 tick = 0
-delta_px_per_tick = 1
+delta_px_per_tick = 2
 cycle = int(lane_height/delta_px_per_tick)
 
 
@@ -57,17 +57,22 @@ while game_live:
 
     screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
 
-    for i in range(len(list_of_enemies)):
-        list_of_enemies[i].update_position()
-    #[expression for item in list if conditional]
+    for e in list_of_enemies:
+        e.update_position()
+    #list_of_enemies = [e.update_position() for e in list_of_enemies]
 
-    if np.random.binomial(1, 0.01) == True:
-        enemy = mc.Enemy(np.random.randint(0, number_of_lanes+1), 'car_enemy.png')
-        list_of_enemies.append(enemy)
+
+    if (np.random.binomial(1, 0.01) == True):
+        random_lane=np.random.randint(0, number_of_lanes+1)
+        enemy = mc.Enemy(random_lane, 'car_enemy.png')
+        y_help = np.array([e.pos_y for e in list_of_enemies])
+        lane_help = np.array([e.lane for e in list_of_enemies])
+        if not min(list(y_help[np.where(lane_help == random_lane)]), default=car_height+1)<=car_height:
+            list_of_enemies.append(enemy)
 
     for i,e in enumerate(list_of_enemies):
-        if e.pos_y>SCREEN_HEIGHT:
-            list_of_enemies.pop(i)
+        if (e.pos_y>SCREEN_HEIGHT):
+            del list_of_enemies[i]
         screen.blit(e.image, (e.pos_x, e.pos_y))
 
 
