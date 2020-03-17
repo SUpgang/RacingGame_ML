@@ -1,5 +1,7 @@
 import pygame
 import mycolors
+import myclasses  as mc
+import numpy as np
 import time
 
 # Initialize pygame
@@ -38,6 +40,9 @@ tick = 0
 delta_px_per_tick = 1
 cycle = int(lane_height/delta_px_per_tick)
 
+
+list_of_enemies = []
+
 while game_live:
     myclock.tick(FPS)
     # time.sleep(0.01)
@@ -52,6 +57,13 @@ while game_live:
 
     screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
 
+    if np.random.binomial(1, 0.01) == True:
+        enemy = mc.Enemy(np.random.randint(0, number_of_lanes), pygame.image.load('car_enemy.png'))
+        list_of_enemies.append(enemy)
+    for i in range(len(list_of_enemies)):
+        screen.blit(list_of_enemies[i].image, (lane_width * (list_of_enemies[i].lane - 1) + 20, 0))
+
+
     # Check for events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -65,8 +77,6 @@ while game_live:
     # Show drawings on screen
     pygame.display.flip()
     tick += 1
-
-
 
 
 # Quit game after loop
