@@ -31,7 +31,7 @@ car_height = 100
 car_width = 60
 
 # Game settings
-number_of_lanes = 8
+number_of_lanes = 6
 car_starting_lane = 1
 car_current_lane = car_starting_lane
 tick = 0
