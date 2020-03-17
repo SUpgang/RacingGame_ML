@@ -57,11 +57,14 @@ while game_live:
 
     screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
 
+    for i in range(len(list_of_enemies)):
+        list_of_enemies[i].update_position()
+
     if np.random.binomial(1, 0.01) == True:
-        enemy = mc.Enemy(np.random.randint(0, number_of_lanes), pygame.image.load('car_enemy.png'))
+        enemy = mc.Enemy(np.random.randint(0, number_of_lanes+1), 'car_enemy.png')
         list_of_enemies.append(enemy)
     for i in range(len(list_of_enemies)):
-        screen.blit(list_of_enemies[i].image, (lane_width * (list_of_enemies[i].lane - 1) + 20, 0))
+        screen.blit(list_of_enemies[i].image, (list_of_enemies[i].pos_x, list_of_enemies[i].pos_y))
 
 
     # Check for events
