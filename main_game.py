@@ -6,51 +6,69 @@ import time
 pygame.init()
 pygame.font.init()
 
+myclock = pygame.time.Clock()
+FPS = 120
+
+SCREEN_HEIGHT = 500
 SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
 FONT_SIZE = 20
 
 # Create the screen
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption('Python Project')
+pygame.display.set_caption('The Racing Game')
 myfont = pygame.font.SysFont('Comic Sans MS', FONT_SIZE)
 
-# globale game variables
+# global game variables
 game_live = True
 
-# Test Area
-nolanes = 10
-stepw = SCREEN_WIDTH/(nolanes)
-carheight=SCREEN_HEIGHT/10
-myRect = pygame.Rect(0,SCREEN_HEIGHT-carheight,SCREEN_WIDTH/nolanes,carheight)
+# Import images for lanes and cars
+lane_image = pygame.image.load('street_sprite.png')
+lane_height = 500
+lane_width = 100
 
+car_image = pygame.image.load('car_sprite.png')
+car_height = 100
+car_width = 60
+
+# Game settings
+number_of_lanes = 8
+car_starting_lane = 1
+car_current_lane = car_starting_lane
+tick = 0
+delta_px_per_tick = 1
+cycle = int(lane_height/delta_px_per_tick)
 
 while game_live:
-    time.sleep(0.01)
+    myclock.tick(FPS)
+    # time.sleep(0.01)
+
+    # Delete previous content
     screen.fill(mycolors.white)
-    for lane in range(1,nolanes):
-        pygame.draw.line(screen, mycolors.black,(SCREEN_WIDTH/nolanes*lane,0),(SCREEN_WIDTH/nolanes*lane,SCREEN_HEIGHT),1)
+
+    # Fill up the streets:
+    for i in range(number_of_lanes):
+        screen.blit(lane_image, (lane_width*i, delta_px_per_tick*tick%cycle))
+        screen.blit(lane_image, (lane_width*i, -lane_height+delta_px_per_tick*tick%cycle))
+
+    screen.blit(car_image, (lane_width*(car_current_lane-1) + 20, 400))
+
     # Check for events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game_live = False
         if event.type == pygame.KEYDOWN:
-            #if event.key == pygame.K_UP:
-            #    myRect.y -= stepw
-            #if event.key == pygame.K_DOWN:
-            #    myRect.y += stepw
             if event.key == pygame.K_LEFT:
-                myRect.x -= stepw
+                car_current_lane = max(1, car_current_lane - 1)
             if event.key == pygame.K_RIGHT:
-                myRect.x += stepw
+                car_current_lane = min(number_of_lanes, car_current_lane + 1)
 
-
-    # Draw things
-    pygame.draw.rect(screen, mycolors.green, myRect)
+    # Show drawings on screen
     pygame.display.flip()
+    tick += 1
 
 
 
 
 # Quit game after loop
 pygame.quit()
+quit()
