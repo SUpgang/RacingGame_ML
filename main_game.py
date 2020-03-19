@@ -11,6 +11,9 @@ pygame.font.init()
 myclock = pygame.time.Clock()
 FPS = 60
 
+# Sound
+crash = pygame.mixer.music.load('collision.MP3')
+
 SCREEN_HEIGHT = 500
 SCREEN_WIDTH = 800
 FONT_SIZE = 20
@@ -84,6 +87,7 @@ while game_live:
     lane_help = np.array([e.lane for e in list_of_enemies])
     if me.pos_y-max(list(y_help[np.where(lane_help == me.lane)]), default=car_height+1)<=car_height:
         collision = True
+        pygame.mixer.music.play()
 
 
     # Check for events
