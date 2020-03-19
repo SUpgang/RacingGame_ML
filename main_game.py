@@ -38,6 +38,7 @@ car_starting_lane = 1
 tick = 0
 delta_px_per_tick = 2
 cycle = int(lane_height/delta_px_per_tick)
+collision = False
 
 me = mc.MyCar(image='car_sprite.png')
 me.pos_y = SCREEN_HEIGHT-me.image_height
@@ -60,8 +61,9 @@ while game_live:
     me.update_x()
     screen.blit(me.image, (me.pos_x,me.pos_y))
 
-    for e in list_of_enemies:
-        e.update_position()
+    if collision == False:
+        for e in list_of_enemies:
+            e.update_position()
     #list_of_enemies = [e.update_position() for e in list_of_enemies]
 
 
@@ -81,7 +83,7 @@ while game_live:
     y_help = np.array([e.pos_y for e in list_of_enemies])
     lane_help = np.array([e.lane for e in list_of_enemies])
     if me.pos_y-max(list(y_help[np.where(lane_help == me.lane)]), default=car_height+1)<=car_height:
-        print('Aaaaaah')
+        collision = True
 
 
     # Check for events
@@ -96,7 +98,8 @@ while game_live:
 
     # Show drawings on screen
     pygame.display.flip()
-    tick += 1
+    if collision == False:
+        tick += 1
 
 
 # Quit game after loop
