@@ -1,6 +1,6 @@
 import pygame
 import mycolors
-import myclasses  as mc
+import myclasses as mc
 import numpy as np
 import time
 
@@ -12,7 +12,7 @@ myclock = pygame.time.Clock()
 FPS = 60
 
 # Sound
-crash = pygame.mixer.music.load('collision.MP3')
+#crash = pygame.mixer.music.load('collision.MP3')
 
 SCREEN_HEIGHT = 500
 SCREEN_WIDTH = 800
@@ -43,8 +43,8 @@ delta_px_per_tick = 2
 cycle = int(lane_height/delta_px_per_tick)
 collision = False
 
-me = mc.MyCar(image='car_sprite.png')
-me.pos_y = SCREEN_HEIGHT-me.image_height
+player_car = mc.MyCar(image='car_sprite.png')
+player_car.pos_y = SCREEN_HEIGHT-player_car.image_height
 
 list_of_enemies = []
 
@@ -60,45 +60,48 @@ while game_live:
         screen.blit(lane_image, (lane_width*i, delta_px_per_tick*tick%cycle))
         screen.blit(lane_image, (lane_width*i, -lane_height+delta_px_per_tick*tick%cycle))
 
+    #Draw player_car
+    player_car.update_x()
+    screen.blit(player_car.image, (player_car.pos_x,player_car.pos_y))
 
-    me.update_x()
-    screen.blit(me.image, (me.pos_x,me.pos_y))
-
+    #Let enemy cars drive
     if collision == False:
-        for e in list_of_enemies:
-            e.update_position()
+        for enemy in list_of_enemies:
+            enemy.update_position()
     #list_of_enemies = [e.update_position() for e in list_of_enemies]
 
-
-    if (np.random.binomial(1, 0.01) == True):
+    #Update list_of_enemies if starting position is free
+    if np.random.binomial(1, 0.01) == True:
         random_lane=np.random.randint(0, number_of_lanes+1)
-        y_help = np.array([e.pos_y for e in list_of_enemies])
-        lane_help = np.array([e.lane for e in list_of_enemies])
+        y_help = np.array([enemy.pos_y for enemy in list_of_enemies])
+        lane_help = np.array([enemy.lane for enemy in list_of_enemies])
         if not min(list(y_help[np.where(lane_help == random_lane)]), default=car_height+1)<=car_height:
             enemy = mc.Enemy(random_lane, 'car_enemy.png')
             list_of_enemies.append(enemy)
        
-    for i,e in enumerate(list_of_enemies):
-        if (e.pos_y>SCREEN_HEIGHT):
+    #Delete enemies from list_of_enemies if they leave the screen
+    for i,enemy in enumerate(list_of_enemies):
+        if (enemy.pos_y>SCREEN_HEIGHT):
             del list_of_enemies[i]
-        screen.blit(e.image, (e.pos_x, e.pos_y))
+        screen.blit(enemy.image, (enemy.pos_x, enemy.pos_y))
 
-    y_help = np.array([e.pos_y for e in list_of_enemies])
-    lane_help = np.array([e.lane for e in list_of_enemies])
-    if me.pos_y-max(list(y_help[np.where(lane_help == me.lane)]), default=car_height+1)<=car_height:
+    #Check for collision
+    y_help = np.array([enemy.pos_y for enemy in list_of_enemies])
+    lane_help = np.array([enemy.lane for enemy in list_of_enemies])
+    if player_car.pos_y-max(list(y_help[np.where(lane_help == player_car.lane)]), default=car_height+1)<=car_height:
         collision = True
-        pygame.mixer.music.play()
+        #pygame.mixer.music.play()
 
 
     # Check for events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game_live = False
-        if event.type == pygame.KEYDOWN:
+        if (event.type == pygame.KEYDOWN) and (collision == False):
             if event.key == pygame.K_LEFT:
-                me.lane = max(1, me.lane - 1)
+                player_car.lane = max(1, player_car.lane - 1)
             if event.key == pygame.K_RIGHT:
-                me.lane = min(number_of_lanes, me.lane + 1)
+                player_car.lane = min(number_of_lanes, player_car.lane + 1)
 
     # Show drawings on screen
     pygame.display.flip()
