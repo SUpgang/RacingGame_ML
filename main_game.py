@@ -1,38 +1,22 @@
 import pygame
 import mycolors
 import random
-import MyClasses
+from MyClasses import *
 
+my_game_session = GameSession()
 
+while my_game_session.live:
+    my_game_session.tick()
+    my_game_session.draw_street()
 
-# Initialize pygame
-pygame.init()
-pygame.font.init()
+    # Der nachfolgende Part soll noch anders geregelt werden, nur ne Notlösung
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            my_game_session.live = False
+pygame.quit()
+quit()
 
-myclock = pygame.time.Clock()
-FPS = 60
-
-SCREEN_HEIGHT = 500
-SCREEN_WIDTH = 800
-FONT_SIZE = 20
-
-# Create the screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-print(screen.get_width())
-pygame.display.set_caption('The Racing Game')
-myfont = pygame.font.SysFont('Comic Sans MS', FONT_SIZE)
-
-# global game variables
-game_live = True
-
-# Import images for lanes and cars
-lane_image = pygame.image.load('street_sprite.png')
-lane_height = 500
-lane_width = 100
-
-car_image = pygame.image.load('car_sprite.png')
-car_height = 100
-car_width = 60
+# ALLES AB HIER WIRD IGNORIERT
 
 # Game settings
 number_of_lanes = 8
