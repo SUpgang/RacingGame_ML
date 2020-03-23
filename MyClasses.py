@@ -31,7 +31,7 @@ class TrafficAgents:
             self.pos_x = self._game_session.lane_width*(self.lane-1) + (self._game_session.lane_width-self.image_width)/2
             if agent_type == 'player':
                 self.image = pygame.image.load('car_sprite.png')
-                self.pos_y = self._game_session.screen.get_height-self.image_height
+                self.pos_y = self._game_session.screen.get_height()-self.image_height
                 self.speed_x = 1
                 self.speed_y = 1
             else:
@@ -52,6 +52,9 @@ class TrafficAgents:
     def update_position(self):
         self.pos_y = self.pos_y + self.speed_y
         self.collision_rect.move_ip(0, self.speed_y)
+
+    def check_collision(self, other_rect):
+        return self.collision_rect.colliderect(other_rect.collision_rect)
         
 
 class GameSession:

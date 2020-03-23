@@ -7,6 +7,10 @@ my_game_session = GameSession()
 
 while my_game_session.live:
     my_game_session.tick()
+    #mal zum testen aber klappt aktuell nicht, müssen wir mal drüber reden
+    player = TrafficAgents(my_game_session,starting_lane=1, agent_type='player')
+    my_game_session.screen.blit(player.image, (player.pos_x, player.pos_y))
+
     my_game_session.draw_street()
 
     # Der nachfolgende Part soll noch anders geregelt werden, nur ne Notlösung
