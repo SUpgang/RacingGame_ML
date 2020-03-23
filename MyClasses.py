@@ -23,9 +23,10 @@ class Street:
 
 
 class TrafficAgents:
-    '''An object on the street (including the player, enemies and fixed obstacles)
+    """An object on the street (including the player, enemies and fixed obstacles)
 
         Attributes:
+            agent_type: 'enemy' for enemy car, 'player' for player
             lane: current lane, integer, 1-to-1 with position
             position = (pos_x, pos_y): numpy array
             speed = (speed_x, speed_y): numpy array, number of pixel to move every tick
@@ -37,13 +38,40 @@ class TrafficAgents:
             check_collision(self, other_rect)
             get_pos_x(self): returns the pos_x according to self.lane
 
-    '''
-
+    """
     _number_of_agents = 0
 
-    def __init__(self, starting_lane=1, agent_type='enemy'):
+    def __init__(self, game_session, starting_lane=1, agent_type='enemy'):
+        self._game_session = game_session
+        self.lane = starting_lane
+        self.agent_type = agent_type
+        if agent_type != '':
+            self.image_width = 60
+            self.image_height = 100
+            self.pos_x = self._game_session.lane_width*(self.lane-1) + (self._game_session.lane_width-self.image_width)/2
+            if agent_type == 'player':
+                self.image = pygame.image.load('car_sprite.png')
+                self.pos_y = self._game_session.screen.get_height-self.image_height
+                self.speed_x = 1
+                self.speed_y = 1
+            else:
+                self.image = pygame.image.load('car_sprite_enemy.png')
+                self.pos_y = -self.image_height
+                self.speed_x = 0
+                self.speed_y = 2
+            self.position = np.array([self.pos_x,self.pos_y])
+            self.speed = np.array([self.speed_x,self.speed_y])
+            self.collision_rect = pygame.Rect((self.pos_x, self.pos_y), (self.image_width, self.image_height))
 
         TrafficAgents._number_of_agents += 1
+
+    def get_pos_x(self):
+        self.pos_x = self._game_session.lane_width * (self.lane - 1) + (self._game_session.lane_width - self.image_width) / 2
+
+    def update_position(self):
+        self.pos_y = self.pos_y + self.speed_y
+        self.collision_rect.move_ip(0, self.speed_y)
+        
 
 class GameSession:
     '''The Session which handles one game including Street and Agents
