@@ -7,10 +7,14 @@ class Street:
         Attributes:
             number_of_lanes: integer
             image_lane: pygame image for one lane
+            sprite_position = (pos_x, pos_y): numpy array, starting value to draw lanes
             speed = (0, speed_y): numpy array
-            height: equals height of one lane
-            width: equals width_of_lane * number_of_lanes
-            agents: list of agents on the street
+            street_height: equals height of one lane
+            street_width: equals width_of_lane * number_of_lanes
+            enemies_list: list of enemies on the street
+
+        Methods:
+            update_sprite_position(self)
 
     '''
 
@@ -22,17 +26,22 @@ class TrafficAgents:
     '''An object on the street (including the player, enemies and fixed obstacles)
 
         Attributes:
-            position = (pos_x, pos_y): numpy array
             lane: current lane, integer, 1-to-1 with position
+            position = (pos_x, pos_y): numpy array
+            speed = (speed_x, speed_y): numpy array, number of pixel to move every tick
             image: pygame image
             collision_rect: pygame rect to check for collisions
-            speed = (speed_x, speed_y): numpy array, number of pixel to move every tick
+
+        Methods:
+            update_position(self)
+            check_collision(self, other_rect)
+            get_pos_x(self): returns the pos_x according to self.lane
 
     '''
 
     _number_of_agents = 0
 
-    def __init__(self):
+    def __init__(self, starting_lane=1, agent_type='enemy'):
 
         TrafficAgents._number_of_agents += 1
 
@@ -40,15 +49,24 @@ class GameSession:
     '''The Session which handles one game including Street and Agents
 
         Attributes:
+            screen: Screen object from pygame
             street: Street-object
             player:
-            screen:
-            enemies_list: List of all enemies
 
+        Methods:
 
-        '''
+    '''
 
-    def __init__(self):
+    # number_of_lanes = 8
+    # car_starting_lane = 1
+    # car_current_lane = car_starting_lane
+    # tick = 0
+    # delta_px_per_tick = 2
+    # cycle = int(lane_height / delta_px_per_tick)
+    # p = 0
+    # enemy_list = []
+
+    def __init__(self, height=800, width=500, starting_lane=1, h):
         pass
 
 class Enemy:

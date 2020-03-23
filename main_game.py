@@ -3,6 +3,8 @@ import mycolors
 import random
 import MyClasses
 
+
+
 # Initialize pygame
 pygame.init()
 pygame.font.init()
@@ -16,6 +18,7 @@ FONT_SIZE = 20
 
 # Create the screen
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+print(screen.get_width())
 pygame.display.set_caption('The Racing Game')
 myfont = pygame.font.SysFont('Comic Sans MS', FONT_SIZE)
 
