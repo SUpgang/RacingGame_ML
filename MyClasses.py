@@ -134,14 +134,11 @@ class GameSession:
                     self.man_player_speed[0] = -self.lane_width
                 if event.key == pygame.K_RIGHT:
                     self.man_player_speed[0] = self.lane_width
-                # print(man_player_speed)
-            elif event.type == pygame.KEYUP:
-                self.man_player_speed[0] = 0
-                # print(man_player_speed)
 
     def update_positions(self):
         for agent in self.agent_list:
             agent.update_position(self.man_player_speed)
+            self.man_player_speed = np.array([0,0])
 
     def draw(self, street_speed=1):
         """Draws the street to screen according to the current speed"""
