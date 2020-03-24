@@ -11,7 +11,11 @@ class TrafficAgents:
             position = (pos_x, pos_y): numpy array
             speed = (speed_x, speed_y): numpy array, number of pixel to move every tick
             image: pygame image
+            image_width: width of image in pixels
+            image_height: width of image in pixels
             collision_rect: pygame rect to check for collisions
+            _lane_width: lane width in pixels
+            _screen_height: screen height in pixels
 
         Methods:
             update_position(self)
@@ -21,14 +25,15 @@ class TrafficAgents:
     """
     _number_of_agents = 0
 
-    def __init__(self, game_session, starting_lane=1, agent_type='enemy'):
-        self._game_session = game_session
+    def __init__(self, screen_height, lane_width, starting_lane=1, agent_type='enemy'):
         self.lane = starting_lane
+        self._lane_width = lane_width
+        self._screen_height = screen_height
         self.agent_type = agent_type
         if agent_type == 'player':
             self.image = pygame.image.load('car_sprite.png')
             self.image_height = self.image.get_height()
-            pos_y = self._game_session.req_screen_height-self.image_height
+            pos_y = screen_height-self.image_height
             speed_x = 1
             speed_y = 1
         else:
@@ -44,13 +49,14 @@ class TrafficAgents:
 
         TrafficAgents._number_of_agents += 1
 
-
     def get_pos_x(self):
-        return self._game_session.lane_width * (self.lane - 1) + (self._game_session.lane_width - self.image_width) / 2
+        return self._lane_width * (self.lane - 1) + (self._lane_width - self.image_width) / 2
 
-    def update_position(self):
-        self.position[1] += self.speed[1]
-        self.collision_rect.move_ip(0, self.speed[1])
+    def update_position(self, manual_player_speed):
+        if self.agent_type == 'player':
+            self.speed = manual_player_speed
+        self.position += self.speed
+        self.collision_rect.move_ip(self.speed[0], self.speed[1])
 
     def check_collision(self, other_rect):
         return self.collision_rect.colliderect(other_rect.collision_rect)
