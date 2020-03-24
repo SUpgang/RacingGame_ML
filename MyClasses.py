@@ -16,6 +16,7 @@ class TrafficAgents:
             collision_rect: pygame rect to check for collisions
             _lane_width: lane width in pixels
             _screen_height: screen height in pixels
+            _screen_width: screen width in pixels
 
         Methods:
             update_position(self)
@@ -25,10 +26,11 @@ class TrafficAgents:
     """
     _number_of_agents = 0
 
-    def __init__(self, screen_height, lane_width, starting_lane=1, agent_type='enemy'):
+    def __init__(self, screen_height, screen_width, lane_width, starting_lane=1, agent_type='enemy'):
         self.lane = starting_lane
         self._lane_width = lane_width
         self._screen_height = screen_height
+        self._screen_width = screen_width
         self.agent_type = agent_type
         if agent_type == 'player':
             self.image = pygame.image.load('car_sprite.png')
@@ -56,7 +58,13 @@ class TrafficAgents:
         if self.agent_type == 'player':
             self.speed = manual_player_speed
         self.position += self.speed
-        self.collision_rect.move_ip(self.speed[0], self.speed[1])
+
+        #undo update if player leaves the screen
+        if (self.agent_type == 'player') and ((self.position[0] < 0) or (self.position[0] > self._screen_width)):
+            self.position -= self.speed
+        else:
+            #move collision_rect only if player does not leave screen
+            self.collision_rect.move_ip(self.speed[0], self.speed[1])
 
         if self.agent_type == 'player':
             return True
