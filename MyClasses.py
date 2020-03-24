@@ -58,6 +58,14 @@ class TrafficAgents:
         self.position += self.speed
         self.collision_rect.move_ip(self.speed[0], self.speed[1])
 
+        if self.agent_type == 'player':
+            return True
+        elif self.position[1] > self._screen_height:
+            return False
+        else:
+            return True
+
+
     def check_collision(self, other_rect):
         return self.collision_rect.colliderect(other_rect.collision_rect)
 
