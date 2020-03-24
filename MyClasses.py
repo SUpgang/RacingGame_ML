@@ -34,8 +34,8 @@ class TrafficAgents:
             self.image = pygame.image.load('car_sprite.png')
             self.image_height = self.image.get_height()
             pos_y = screen_height-self.image_height
-            speed_x = 1
-            speed_y = 1
+            speed_x = 0
+            speed_y = 0
         else:
             self.image = pygame.image.load('car_sprite_enemy.png')
             self.image_height = self.image.get_height()
@@ -60,6 +60,9 @@ class TrafficAgents:
 
     def check_collision(self, other_rect):
         return self.collision_rect.colliderect(other_rect.collision_rect)
+
+    def draw(self, screen):
+        screen.blit(self.image, (self.position[0], self.position[1]))
         
 
 class GameSession:
