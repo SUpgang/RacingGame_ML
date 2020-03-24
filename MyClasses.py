@@ -74,7 +74,7 @@ class GameSession:
             sprite_position = (pos_x, pos_y): numpy array, starting value to draw lanes
             speed = (0, speed_y): numpy array
 
-            enemies_list: list of enemies on the street
+            agent_list: agent[0] is always the player
 
             live = True: status of the game, running or not
 
@@ -83,7 +83,7 @@ class GameSession:
             draw_street(self)
     """
 
-    def __init__(self, number_of_lanes=8, lane_sprite='street_sprite.png', fps=60, screen=[]):
+    def __init__(self, player_type = 'manual', number_of_lanes=8, lane_sprite='street_sprite.png', fps=60, screen=[]):
         """ """
 
         # init game_clock
@@ -98,7 +98,8 @@ class GameSession:
 
         # init further attributes
         self.number_of_lanes = number_of_lanes
-        self.enemies_list = []
+        self.agent_list = []
+        self.man_player_speed = np.array([0,0])
         self.t = 0
 
         # init screen
@@ -107,37 +108,54 @@ class GameSession:
         if not screen == []:
             self.screen = pygame.display.set_mode((self.req_screen_width, self.req_screen_height))
 
+        self.agent_list.append(TrafficAgents(agent_type='player', screen_height=self.req_screen_height, lane_width=self.lane_width))
         self.live = True
 
     def tick(self):
         self.game_clock.tick(self.FPS)
         self.t += 1
-        #print(self.t)
-
-    def draw_street(self, speed=1):
-        """Draws the street to screen according to the current speed"""
-
-        if not self.screen == []:
-            self.screen.fill(mycolors.white)
-            self.screen.blit(self.lane_image, (0,100))
-
-            # Fill up the streets:
-            for i in range(self.number_of_lanes):
-                cycle = int(self.lane_height/speed)
-                shift_px_y = speed * self.t % cycle
-                self.screen.blit(self.lane_image, (self.lane_width * i, shift_px_y))
-                self.screen.blit(self.lane_image, (self.lane_width * i, -self.lane_height + shift_px_y))
 
     def handle_events(self):
         """For events like quit or userinputs"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.live = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    self.man_player_speed[0] = -self.lane_width
+                if event.key == pygame.K_RIGHT:
+                    self.man_player_speed[0] = self.lane_width
+                # print(man_player_speed)
+            elif event.type == pygame.KEYUP:
+                self.man_player_speed[0] = 0
+                # print(man_player_speed)
+
+    def update_positions(self):
+        for agent in self.agent_list:
+            agent.update_position(self.man_player_speed)
+
+    def draw(self, street_speed=1):
+        """Draws the street to screen according to the current speed"""
+
+        if not self.screen == []:
+            self.screen.fill(mycolors.white)
+            self.screen.blit(self.lane_image, (0, 100))
+
+            # Fill up the streets:
+            for i in range(self.number_of_lanes):
+                cycle = int(self.lane_height / street_speed)
+                shift_px_y = street_speed * self.t % cycle
+                self.screen.blit(self.lane_image, (self.lane_width * i, shift_px_y))
+                self.screen.blit(self.lane_image, (self.lane_width * i, -self.lane_height + shift_px_y))
+
+            for agent in self.agent_list:
+                agent.draw(self.screen)
 
     def gameloop(self):
         """All functions needed for one loop cycle"""
         self.tick()
         self.handle_events()
+        self.update_positions()
         self.draw_street()
 
 
