@@ -110,6 +110,7 @@ class GameSession:
         self.agent_list = []
         self.man_player_speed = np.array([0,0])
         self.t = 0
+        self.spawning_probability = 0
 
         # init screen
         self.req_screen_height = self.lane_height
@@ -124,6 +125,23 @@ class GameSession:
         self.game_clock.tick(self.FPS)
         self.t += 1
 
+    def spawn_enemies(self):
+        if np.random.rand() < self.spawning_probability:
+            starting_lane = np.random.randint(1, self.number_of_lanes+1)
+            self.agent_list.append(TrafficAgents(lane_width=self.lane_width, screen_height=self.req_screen_height, starting_lane=starting_lane))
+
+            # spawning_collision = False
+            # for enemy in enemy_list:
+            #     if new_enemy.collision_rect.colliderect(enemy.collision_rect):
+            #         spawning_collision = True
+            #         # print('Did not spawn at lane {}'.format(starting_lane))
+            #
+            # if not spawning_collision:
+            #     enemy_list.append(new_enemy)
+            # p = 0
+        else:
+            self.spawning_probability += round(1 / ((len(self.agent_list)) * self.FPS * 50), 6)
+
     def handle_events(self):
         """For events like quit or userinputs"""
         for event in pygame.event.get():
@@ -136,9 +154,11 @@ class GameSession:
                     self.man_player_speed[0] = self.lane_width
 
     def update_positions(self):
-        for agent in self.agent_list:
-            agent.update_position(self.man_player_speed)
-            self.man_player_speed = np.array([0,0])
+        for i, agent in enumerate(self.agent_list):
+            if not agent.update_position(self.man_player_speed):
+                self.agent_list.pop(i)
+            elif i == 0:
+                self.man_player_speed = np.array([0,0])
 
     def draw(self, street_speed=1):
         """Draws the street to screen according to the current speed"""
@@ -160,6 +180,7 @@ class GameSession:
     def gameloop(self):
         """All functions needed for one loop cycle"""
         self.tick()
+        self.spawn_enemies()
         self.handle_events()
         self.update_positions()
         self.draw()
