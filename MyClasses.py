@@ -25,33 +25,32 @@ class TrafficAgents:
         self._game_session = game_session
         self.lane = starting_lane
         self.agent_type = agent_type
-        if agent_type != '':
-            self.image_width = 60
-            self.image_height = 100
-            self.pos_x = self._game_session.lane_width*(self.lane-1) + (self._game_session.lane_width-self.image_width)/2
-            if agent_type == 'player':
-                self.image = pygame.image.load('car_sprite.png')
-                self.pos_y = self._game_session.screen.get_height()-self.image_height
-                self.speed_x = 1
-                self.speed_y = 1
-            else:
-                self.image = pygame.image.load('car_sprite_enemy.png')
-                self.pos_y = -self.image_height
-                self.speed_x = 0
-                self.speed_y = 2
-            self.position = np.array([self.pos_x,self.pos_y])
-            self.speed = np.array([self.speed_x,self.speed_y])
-            self.collision_rect = pygame.Rect((self.pos_x, self.pos_y), (self.image_width, self.image_height))
+        if agent_type == 'player':
+            self.image = pygame.image.load('car_sprite.png')
+            self.image_height = self.image.get_height()
+            pos_y = self._game_session.req_screen_height-self.image_height
+            speed_x = 1
+            speed_y = 1
+        else:
+            self.image = pygame.image.load('car_sprite_enemy.png')
+            self.image_height = self.image.get_height()
+            pos_y = -self.image_height
+            speed_x = 0
+            speed_y = 2
+        self.image_width = self.image.get_width()
+        self.position = np.array([self.get_pos_x(),pos_y])
+        self.speed = np.array([speed_x,speed_y])
+        self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image_width, self.image_height))
 
         TrafficAgents._number_of_agents += 1
 
 
     def get_pos_x(self):
-        self.pos_x = self._game_session.lane_width * (self.lane - 1) + (self._game_session.lane_width - self.image_width) / 2
+        return self._game_session.lane_width * (self.lane - 1) + (self._game_session.lane_width - self.image_width) / 2
 
     def update_position(self):
-        self.pos_y = self.pos_y + self.speed_y
-        self.collision_rect.move_ip(0, self.speed_y)
+        self.position[1] += self.speed[1]
+        self.collision_rect.move_ip(0, self.speed[1])
 
     def check_collision(self, other_rect):
         return self.collision_rect.colliderect(other_rect.collision_rect)
