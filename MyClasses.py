@@ -165,7 +165,7 @@ class GameSession:
         self.tick()
         self.handle_events()
         self.update_positions()
-        self.draw_street()
+        self.draw()
 
 
 
