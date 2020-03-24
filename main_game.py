@@ -1,22 +1,24 @@
-import pygame
-import mycolors
 import random
 from MyClasses import *
 
-my_game_session = GameSession()
+# init pygame
+pygame.init()
+pygame.font.init()
+my_screen = pygame.display.set_mode((800, 500))
+## init pygame font
+# font_size = 20
+# myfont = pygame.font.SysFont('Comic Sans MS', font_size)
+
+my_game_session = GameSession(screen=my_screen)
 
 while my_game_session.live:
-    my_game_session.tick()
-    #mal zum testen aber klappt aktuell nicht, müssen wir mal drüber reden
-    player = TrafficAgents(my_game_session,starting_lane=1, agent_type='player')
-    my_game_session.screen.blit(player.image, (player.pos_x, player.pos_y))
 
-    my_game_session.draw_street()
+    #player = TrafficAgents(my_game_session,starting_lane=1, agent_type='player')
+    #my_game_session.screen.blit(player.image, (player.pos_x, player.pos_y))
 
-    # Der nachfolgende Part soll noch anders geregelt werden, nur ne Notlösung
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            my_game_session.live = False
+    my_game_session.gameloop()
+    pygame.display.flip()
+
 pygame.quit()
 quit()
 

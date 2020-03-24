@@ -61,7 +61,8 @@ class GameSession:
     """ Underlying object which manages all parts of a GameSession
 
         Attributes:
-            screen: Screen object from pygame
+            req_screen_height: requiered screen height
+            req_screen_width: requiered screen width
             FPS: 60
             game_clock: clock for the game to count the loops
 
@@ -83,15 +84,13 @@ class GameSession:
             draw_street(self)
     """
 
-    def __init__(self, number_of_lanes=8, lane_sprite='street_sprite.png', fps=60):
+    def __init__(self, number_of_lanes=8, lane_sprite='street_sprite.png', fps=60, screen=[]):
         """ """
-        # init pygame
-        pygame.init()
-        pygame.font.init()
 
         # init game_clock
         self.game_clock = pygame.time.Clock()
         self.FPS = fps
+        self.screen = screen
 
         # load street sprite
         self.lane_image = pygame.image.load(lane_sprite)
@@ -104,14 +103,10 @@ class GameSession:
         self.t = 0
 
         # init screen
-        screen_height = self.lane_height
-        screen_width = number_of_lanes * self.lane_width
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
-        pygame.display.set_caption('The Racing Game')
-
-        ## init font
-        # font_size = 20
-        # myfont = pygame.font.SysFont('Comic Sans MS', font_size)
+        self.req_screen_height = self.lane_height
+        self.req_screen_width = number_of_lanes * self.lane_width
+        if not screen == []:
+            self.screen = pygame.display.set_mode((self.req_screen_width, self.req_screen_height))
 
         self.live = True
 
@@ -122,16 +117,30 @@ class GameSession:
 
     def draw_street(self, speed=1):
         """Draws the street to screen according to the current speed"""
-        self.screen.fill(mycolors.white)
-        self.screen.blit(self.lane_image, (0,100))
 
-        # Fill up the streets:
-        for i in range(self.number_of_lanes):
-            cycle = int(self.lane_height/speed)
-            shift_px_y = speed * self.t % cycle
-            self.screen.blit(self.lane_image, (self.lane_width * i, shift_px_y))
-            self.screen.blit(self.lane_image, (self.lane_width * i, -self.lane_height + shift_px_y))
-        pygame.display.flip()
+        if not self.screen == []:
+            self.screen.fill(mycolors.white)
+            self.screen.blit(self.lane_image, (0,100))
+
+            # Fill up the streets:
+            for i in range(self.number_of_lanes):
+                cycle = int(self.lane_height/speed)
+                shift_px_y = speed * self.t % cycle
+                self.screen.blit(self.lane_image, (self.lane_width * i, shift_px_y))
+                self.screen.blit(self.lane_image, (self.lane_width * i, -self.lane_height + shift_px_y))
+
+    def handle_events(self):
+        """For events like quit or userinputs"""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.live = False
+
+    def gameloop(self):
+        """All functions needed for one loop cycle"""
+        self.tick()
+        self.handle_events()
+        self.draw_street()
+
 
 
 class Enemy:
