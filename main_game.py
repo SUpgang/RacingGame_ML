@@ -13,6 +13,9 @@ my_game_session = GameSession(screen=my_screen)
 
 while my_game_session.live:
 
+    #player = TrafficAgents(my_game_session,starting_lane=1, agent_type='player')
+    #my_game_session.screen.blit(player.image, (player.pos_x, player.pos_y))
+
     my_game_session.gameloop()
     pygame.display.flip()
 
