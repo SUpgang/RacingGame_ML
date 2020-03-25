@@ -34,7 +34,7 @@ class TrafficAgents:
         self.agent_type = agent_type
         if agent_type == 'player':
             self.image = pygame.image.load('car_sprite.png')
-            pos_y = screen_height-self.image.get_height()
+            pos_y = screen_height - self.image.get_height()
             speed_x = 0
             speed_y = 0
         else:
@@ -42,8 +42,8 @@ class TrafficAgents:
             pos_y = -self.image.get_height()
             speed_x = 0
             speed_y = 1
-        self.position = np.array([self.get_pos_x_from_lane(),pos_y])
-        self.speed = np.array([speed_x,speed_y])
+        self.position = np.array([self.get_pos_x_from_lane(), pos_y])
+        self.speed = np.array([speed_x, speed_y])
         self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image.get_width(),
                                                                                  self.image.get_height()))
 
@@ -51,7 +51,8 @@ class TrafficAgents:
         return self._lane_width * (self.lane - 1) + (self._lane_width - self.image.get_width()) / 2
 
     def get_lane_from_position(self):
-        return int(round((self.position[0] - (self._lane_width - self.image.get_width()) / 2 ) / self._lane_width, 1)+1)
+        return int(
+            round((self.position[0] - (self._lane_width - self.image.get_width()) / 2) / self._lane_width, 1) + 1)
 
     def update_position(self, manual_player_speed):
         if self.agent_type == 'player':
@@ -76,7 +77,7 @@ class TrafficAgents:
 
     def draw(self, screen):
         screen.blit(self.image, (self.position[0], self.position[1]))
-        
+
 
 class GameSession:
     """ Underlying object which manages all parts of a GameSession
@@ -112,7 +113,7 @@ class GameSession:
 
     """
 
-    def __init__(self, player_type = 'manual', number_of_lanes=8, lane_sprite='street_sprite.png', fps=120, screen=[]):
+    def __init__(self, player_type='manual', number_of_lanes=8, lane_sprite='street_sprite_2.png', fps=240, screen=[]):
         """ """
 
         # init game_clock
@@ -124,12 +125,12 @@ class GameSession:
         self.lane_image = pygame.image.load(lane_sprite)
         self.lane_height = self.lane_image.get_height()
         self.lane_width = self.lane_image.get_width()
-        self.lane_position_y = np.array([0, -self.lane_height, -2*self.lane_height])
+        self.lane_position_y = np.array([0, -self.lane_height, -2 * self.lane_height])
 
         # init further attributes
         self.number_of_lanes = number_of_lanes
         self.agent_list = []
-        self.man_player_speed = np.array([0,0])
+        self.man_player_speed = np.array([0, 0])
         self.t = 0
         self.spawning_probability = 0
 
@@ -149,7 +150,7 @@ class GameSession:
 
     def spawn_new_enemy(self):
         if np.random.rand() < self.spawning_probability:
-            spawn_lane = np.random.randint(1, self.number_of_lanes+1)
+            spawn_lane = np.random.randint(1, self.number_of_lanes + 1)
 
             new_agent = TrafficAgents(screen_height=self.req_screen_height, screen_width=self.req_screen_width,
                                       lane_width=self.lane_width, starting_lane=spawn_lane)
@@ -185,7 +186,7 @@ class GameSession:
             if not agent.update_position(self.man_player_speed):
                 self.agent_list.pop(i)
             elif i == 0:
-                self.man_player_speed = np.array([0,0])
+                self.man_player_speed = np.array([0, 0])
 
     def check_collisions_with_player(self):
         enemies_at_lane = self.get_list_of_agents_at_lane(self.agent_list[0].lane)
@@ -195,12 +196,11 @@ class GameSession:
         else:
             return False
 
-    def draw(self, street_speed=2):
+    def draw(self, street_speed=3.5):
         """Draws the street to screen according to the current speed"""
 
         if not self.screen == []:
             self.screen.fill(mycolors.white)
-            self.screen.blit(self.lane_image, (0, 100))
 
             # Fill up the streets:
             self.lane_position_y = self.lane_position_y + street_speed
