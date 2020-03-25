@@ -41,7 +41,7 @@ class TrafficAgents:
             self.image = pygame.image.load('car_sprite_enemy.png')
             pos_y = -self.image.get_height()
             speed_x = 0
-            speed_y = 2
+            speed_y = 1
         self.position = np.array([self.get_pos_x_from_lane(),pos_y])
         self.speed = np.array([speed_x,speed_y])
         self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image.get_width(),
@@ -112,7 +112,7 @@ class GameSession:
 
     """
 
-    def __init__(self, player_type = 'manual', number_of_lanes=8, lane_sprite='street_sprite.png', fps=60, screen=[]):
+    def __init__(self, player_type = 'manual', number_of_lanes=8, lane_sprite='street_sprite.png', fps=120, screen=[]):
         """ """
 
         # init game_clock
@@ -124,6 +124,7 @@ class GameSession:
         self.lane_image = pygame.image.load(lane_sprite)
         self.lane_height = self.lane_image.get_height()
         self.lane_width = self.lane_image.get_width()
+        self.lane_position_y = np.array([0, -self.lane_height, -2*self.lane_height])
 
         # init further attributes
         self.number_of_lanes = number_of_lanes
@@ -194,7 +195,7 @@ class GameSession:
         else:
             return False
 
-    def draw(self, street_speed=1):
+    def draw(self, street_speed=2):
         """Draws the street to screen according to the current speed"""
 
         if not self.screen == []:
@@ -202,11 +203,20 @@ class GameSession:
             self.screen.blit(self.lane_image, (0, 100))
 
             # Fill up the streets:
+            self.lane_position_y = self.lane_position_y + street_speed
             for i in range(self.number_of_lanes):
-                cycle = int(self.lane_height / street_speed)
-                shift_px_y = street_speed * self.t % cycle
-                self.screen.blit(self.lane_image, (self.lane_width * i, shift_px_y))
-                self.screen.blit(self.lane_image, (self.lane_width * i, -self.lane_height + shift_px_y))
+                self.screen.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[0]))
+                self.screen.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[1]))
+                self.screen.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[2]))
+
+            if self.lane_position_y[0] > self.req_screen_height:
+                self.lane_position_y[0] = self.lane_position_y[2] - self.lane_height
+
+            if self.lane_position_y[1] > self.req_screen_height:
+                self.lane_position_y[1] = self.lane_position_y[0] - self.lane_height
+
+            if self.lane_position_y[2] > self.req_screen_height:
+                self.lane_position_y[2] = self.lane_position_y[1] - self.lane_height
 
             for agent in self.agent_list:
                 agent.draw(self.screen)
