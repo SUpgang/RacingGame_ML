@@ -9,8 +9,7 @@ class TrafficAgents:
         Attributes:
             lane: current lane, integer, 1-to-1 with position
             _lane_width: lane width in pixels
-            _screen_height: screen height in pixels
-            _screen_width: screen width in pixels
+            _play_area: screen size (width, height)
             agent_type: 'enemy' for enemy car, 'player' for player
             image: pygame image
             position = (pos_x, pos_y): numpy array
@@ -26,24 +25,21 @@ class TrafficAgents:
 
     """
 
-    def __init__(self, screen_height, screen_width, lane_width, starting_lane=1, agent_type='enemy'):
+    def __init__(self, play_area, lane_width, starting_lane=1, agent_type='enemy'):
         self.lane = starting_lane
         self._lane_width = lane_width
-        self._screen_height = screen_height
-        self._screen_width = screen_width
+        self._play_area = play_area
         self.agent_type = agent_type
         if agent_type == 'player':
             self.image = pygame.image.load('car_sprite.png')
-            pos_y = screen_height - self.image.get_height()
-            speed_x = 0
-            speed_y = 0
+            pos_y = self._play_area[1] - self.image.get_height()
+            self.speed = np.array([0, 0])
         else:
             self.image = pygame.image.load('car_sprite_enemy.png')
             pos_y = -self.image.get_height()
-            speed_x = 0
-            speed_y = 1
+            self.speed = np.array([0, 1])
+
         self.position = np.array([self.get_pos_x_from_lane(), pos_y])
-        self.speed = np.array([speed_x, speed_y])
         self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image.get_width(),
                                                                                  self.image.get_height()))
 
@@ -61,13 +57,13 @@ class TrafficAgents:
         new_position = self.position + self.speed
 
         # integrity check for new position
-        if new_position[0] >= 0 and new_position[0] + self.image.get_width() <= self._screen_width:
+        if new_position[0] >= 0 and new_position[0] + self.image.get_width() <= self._play_area[0]:
             self.position = new_position
             self.collision_rect.move_ip(self.speed[0], self.speed[1])
             self.lane = self.get_lane_from_position()
 
         # check if agent cant be deleted
-        if new_position[1] > self._screen_height:
+        if new_position[1] > self._play_area[1]:
             return False
         else:
             return True
@@ -75,8 +71,8 @@ class TrafficAgents:
     def check_collision(self, other_rect):
         return self.collision_rect.colliderect(other_rect.collision_rect)
 
-    def draw(self, screen):
-        screen.blit(self.image, (self.position[0], self.position[1]))
+    def draw(self, surface):
+        surface.blit(self.image, (self.position[0], self.position[1]))
 
 
 class GameSession:
@@ -85,11 +81,11 @@ class GameSession:
         Attributes:
             game_clock: clock for the game to count the loops
             FPS: 60
-            screen
 
             lane_image = 'street_sprite.png'
             lane_width = 100: given by pixels of picture
             lane_height = 500: given by pixels of picture
+            lane_position_y: the three y coordinates for the lanes moving up and down
 
             number_of_lanes: integer
             agent_list: agent[0] is always the player
@@ -99,27 +95,35 @@ class GameSession:
 
             spawning_probability: prob to spawn a new enemy, increasing with time
 
-            req_screen_height: requiered screen height
-            req_screen_width: requiered screen width
+            req_size: (width, height)
+            draw: states if the surface is drawn on screen
+            surface: the surface to blit all the images to
+            session_id: number of gamesession
 
             live = True: status of the game, running or not
 
         Methods:
             tick(self)
-            handle_events(self)
+            spawn_enemies(self)
+            get_list_of_agents_at_lane(self)
+            handle_events(self, events)
             update_positions(self)
-            draw(self)
+            check_collision_with_player(self)
+            draw_surface(self)
+            get_surface(self): returns surface to draw on screen
+            end_session(self): sets live to false and reduces number of sessions
             gameloop(self)
 
     """
 
-    def __init__(self, player_type='manual', number_of_lanes=8, lane_sprite='street_sprite_2.png', fps=240, screen=[]):
+    _number_of_sessions = 0
+
+    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw = False):
         """ """
 
         # init game_clock
         self.game_clock = pygame.time.Clock()
         self.FPS = fps
-        self.screen = screen
 
         # load street sprite
         self.lane_image = pygame.image.load(lane_sprite)
@@ -134,14 +138,19 @@ class GameSession:
         self.t = 0
         self.spawning_probability = 0
 
-        # init screen
-        self.req_screen_height = self.lane_height
-        self.req_screen_width = number_of_lanes * self.lane_width
-        if not screen == []:
-            self.screen = pygame.display.set_mode((self.req_screen_width, self.req_screen_height))
+        # init subsurface
+        self.req_size = (number_of_lanes * self.lane_width, self.lane_height)
+        self.draw = draw
+        if self.draw:
+            self.surface = pygame.Surface(self.req_size)
+            self.session_id = GameSession._number_of_sessions
+            GameSession._number_of_sessions += 1
+        else:
+            self.surface = None
 
-        self.agent_list.append(TrafficAgents(screen_height=self.req_screen_height, screen_width=self.req_screen_width,
-                                             lane_width=self.lane_width, starting_lane=3, agent_type='player'))
+        self.agent_list.append(TrafficAgents(play_area=self.req_size, lane_width=self.lane_width, starting_lane=3,
+                                             agent_type='player'))
+
         self.live = True
 
     def tick(self):
@@ -152,8 +161,7 @@ class GameSession:
         if np.random.rand() < self.spawning_probability:
             spawn_lane = np.random.randint(1, self.number_of_lanes + 1)
 
-            new_agent = TrafficAgents(screen_height=self.req_screen_height, screen_width=self.req_screen_width,
-                                      lane_width=self.lane_width, starting_lane=spawn_lane)
+            new_agent = TrafficAgents(play_area=self.req_size, lane_width=self.lane_width, starting_lane=spawn_lane)
 
             agents_at_same_lane_list = self.get_list_of_agents_at_lane(new_agent.lane)
 
@@ -170,9 +178,9 @@ class GameSession:
         else:
             return []
 
-    def handle_events(self):
+    def handle_events(self, events):
         """For events like quit or userinputs"""
-        for event in pygame.event.get():
+        for event in events:
             if event.type == pygame.QUIT:
                 self.live = False
             if event.type == pygame.KEYDOWN:
@@ -196,37 +204,123 @@ class GameSession:
         else:
             return False
 
-    def draw(self, street_speed=3.5):
+    def draw_surface(self, street_speed=4):
         """Draws the street to screen according to the current speed"""
 
-        if not self.screen == []:
-            self.screen.fill(mycolors.white)
+        if self.surface is not None:
+            self.surface.fill(mycolors.white)
 
             # Fill up the streets:
             self.lane_position_y = self.lane_position_y + street_speed
             for i in range(self.number_of_lanes):
-                self.screen.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[0]))
-                self.screen.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[1]))
-                self.screen.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[2]))
+                self.surface.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[0]))
+                self.surface.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[1]))
+                self.surface.blit(self.lane_image, (self.lane_width * i, self.lane_position_y[2]))
 
-            if self.lane_position_y[0] > self.req_screen_height:
+            if self.lane_position_y[0] > self.req_size[1]:
                 self.lane_position_y[0] = self.lane_position_y[2] - self.lane_height
 
-            if self.lane_position_y[1] > self.req_screen_height:
+            if self.lane_position_y[1] > self.req_size[1]:
                 self.lane_position_y[1] = self.lane_position_y[0] - self.lane_height
 
-            if self.lane_position_y[2] > self.req_screen_height:
+            if self.lane_position_y[2] > self.req_size[1]:
                 self.lane_position_y[2] = self.lane_position_y[1] - self.lane_height
 
             for agent in self.agent_list:
-                agent.draw(self.screen)
+                agent.draw(self.surface)
 
-    def gameloop(self):
+    def get_surface(self):
+        return self.surface
+
+    def end_session(self):
+        self.live = False
+        if self.draw:
+            GameSession._number_of_sessions -= 1
+
+    def gameloop(self, events):
         """All functions needed for one loop cycle"""
-        self.tick()
-        self.spawn_new_enemy()
-        self.handle_events()
-        self.update_positions()
-        self.draw()
-        if self.check_collisions_with_player():
-            self.live = False
+        if self.live:
+            self.tick()
+            self.spawn_new_enemy()
+            self.handle_events(events)
+            self.update_positions()
+            self.draw_surface()
+            if self.check_collisions_with_player():
+                self.end_session()
+
+
+class DisplayHelper:
+    """Handle the display coordination of several GameSessions
+
+        Attributes:
+            screen: pygame display
+            surface:
+            max_sessions:
+            subsurfaces_list:
+
+
+        Methods:
+            set_screen_size(self, new_size)
+            init_subsurfaces(self)
+            draw_on_screen(self, surface, position)
+
+    """
+
+    def __init__(self, number_of_sessions=1, screen_size=(0,0)):
+
+        # init pygame
+        pygame.init()
+        if screen_size[0] == 0 or screen_size[1] == 0:
+            screen_size = (1000, 1000)
+        self.screen = None
+        self.surface = None
+        self.set_screen_size(screen_size)
+
+        self.max_sessions = (2,2)
+        self.subsurfaces_list = []
+        
+        self.init_subsurface()
+
+    def set_screen_size(self, new_size):
+        self.screen = pygame.display.set_mode(new_size)
+        self.surface = pygame.display.get_surface()
+
+    def init_subsurface(self):
+
+        for i in range(self.max_sessions[0]):
+            for j in range(self.max_sessions[1]):
+                new_subsurface_rect = pygame.Rect((500*j, 500*i), (500, 500))
+                new_subsurface = self.surface.subsurface(new_subsurface_rect)
+                self.subsurfaces_list.append(new_subsurface)
+
+        # # Check if any subsurface exists
+        # if not self.subsurfaces_list:
+        #     new_subsurface_rect = pygame.Rect(self.next_start, req_size)
+        #     new_subsurface = self.surface.subsurface(new_subsurface_rect)
+        #
+        #     self.next_start = (req_size[0], 0)
+        #     self.max_height = req_size[1]
+        #
+        #     # Check if new surface can fit in the first row
+        #     elif len(self.subsurfaces_list) <= self.max_sessions[1]:
+        #         self.max_height = max(self.max_height, req_size[1])
+        #         new_screen_size = (self.screen.get_width() + req_size[0], self.max_height)
+        #         self.set_screen_size(new_screen_size)
+        #
+        #         # if max surfaces in a row is reached set next to next row
+        #         if len(self.subsurfaces_list) == self.max_sessions[1]:
+        #             self.next_start = (0, self.max_height + 1)
+        #         else:
+        #             self.next_start = (self.screen.get_width() + 1, 0)
+        #
+        #     else:
+        #         self.next_start = (0, max(500))
+        #
+        #
+        #     self.subsurfaces_list.append(new_subsurface)
+        #
+        #     return new_subsurface
+
+    def draw_on_screen(self, surface, position):
+        if position <= 3:
+            self.subsurfaces_list[position].blit(surface, (0,0))
