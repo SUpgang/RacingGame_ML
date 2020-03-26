@@ -118,7 +118,7 @@ class GameSession:
 
     _number_of_sessions = 0
 
-    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw = False):
+    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw=False):
         """ """
 
         # init game_clock
@@ -266,7 +266,7 @@ class DisplayHelper:
 
     """
 
-    def __init__(self, number_of_sessions=1, screen_size=(0,0)):
+    def __init__(self, number_of_sessions=1, screen_size=(0, 0)):
 
         # init pygame
         pygame.init()
@@ -276,9 +276,9 @@ class DisplayHelper:
         self.surface = None
         self.set_screen_size(screen_size)
 
-        self.max_sessions = (2,2)
+        self.max_sessions = (2, 2)
         self.subsurfaces_list = []
-        
+
         self.init_subsurface()
 
     def set_screen_size(self, new_size):
@@ -289,7 +289,7 @@ class DisplayHelper:
 
         for i in range(self.max_sessions[0]):
             for j in range(self.max_sessions[1]):
-                new_subsurface_rect = pygame.Rect((500*j, 500*i), (500, 500))
+                new_subsurface_rect = pygame.Rect((500 * j, 500 * i), (500, 500))
                 new_subsurface = self.surface.subsurface(new_subsurface_rect)
                 self.subsurfaces_list.append(new_subsurface)
 
@@ -323,4 +323,4 @@ class DisplayHelper:
 
     def draw_on_screen(self, surface, position):
         if position <= 3:
-            self.subsurfaces_list[position].blit(surface, (0,0))
+            self.subsurfaces_list[position].blit(surface, (0, 0))
