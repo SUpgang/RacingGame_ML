@@ -1,10 +1,14 @@
 from MyClasses import *
 
-number_of_sessions = 4
+# Number of sessions <= 4
+number_of_sessions = 1
+# Number of lanes <= 8
+number_of_lanes = 5
 my_displayhelper = DisplayHelper(number_of_sessions)
 session_list = []
+
 for i in range(number_of_sessions):
-    session_list.append(GameSession(draw=True))
+    session_list.append(GameSession(number_of_lanes=number_of_lanes, draw=True))
 
 while any([session.live for session in session_list]):
     events = pygame.event.get()

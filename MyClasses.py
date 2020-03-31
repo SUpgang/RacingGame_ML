@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 import mycolors
+import random
 
 
 class TrafficAgents:
@@ -30,14 +31,18 @@ class TrafficAgents:
         self._lane_width = lane_width
         self._play_area = play_area
         self.agent_type = agent_type
-        if agent_type == 'player':
-            self.image = pygame.image.load('car_sprite.png')
-            pos_y = self._play_area[1] - self.image.get_height()
-            self.speed = np.array([0, 0])
-        else:
+        if agent_type == 'enemy':
             self.image = pygame.image.load('car_sprite_enemy.png')
             pos_y = -self.image.get_height()
             self.speed = np.array([0, 1])
+        else:
+            self.image = pygame.image.load('car_sprite.png')
+            pos_y = self._play_area[1] - self.image.get_height()
+            self.speed = np.array([0, 0])
+            if self.agent_type == 'player':
+                pass
+            elif agent_type == 'qlearner':
+                self.qlearner = QLearningHelper()
 
         self.position = np.array([self.get_pos_x_from_lane(), pos_y])
         self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image.get_width(),
@@ -53,6 +58,8 @@ class TrafficAgents:
     def update_position(self, manual_player_speed):
         if self.agent_type == 'player':
             self.speed = manual_player_speed
+        elif self.agent_type == 'qlearner':
+            self.speed = self.qlearner.get_speed()
 
         new_position = self.position + self.speed
 
@@ -149,7 +156,7 @@ class GameSession:
             self.surface = None
 
         self.agent_list.append(TrafficAgents(play_area=self.req_size, lane_width=self.lane_width, starting_lane=3,
-                                             agent_type='player'))
+                                             agent_type='qlearner'))
 
         self.live = True
 
@@ -271,7 +278,10 @@ class DisplayHelper:
         # init pygame
         pygame.init()
         if screen_size[0] == 0 or screen_size[1] == 0:
-            screen_size = (1000, 1000)
+            if number_of_sessions == 1:
+                screen_size = (800, 500)
+            else:
+                screen_size = (1000, 1000)
         self.screen = None
         self.surface = None
         self.set_screen_size(screen_size)
@@ -279,19 +289,24 @@ class DisplayHelper:
         self.max_sessions = (2, 2)
         self.subsurfaces_list = []
 
-        self.init_subsurface()
+        self.init_subsurface(number_of_sessions)
 
     def set_screen_size(self, new_size):
         self.screen = pygame.display.set_mode(new_size)
         self.surface = pygame.display.get_surface()
 
-    def init_subsurface(self):
+    def init_subsurface(self, number_of_sessions):
 
-        for i in range(self.max_sessions[0]):
-            for j in range(self.max_sessions[1]):
-                new_subsurface_rect = pygame.Rect((500 * j, 500 * i), (500, 500))
-                new_subsurface = self.surface.subsurface(new_subsurface_rect)
-                self.subsurfaces_list.append(new_subsurface)
+        if number_of_sessions == 1:
+            new_subsurface_rect = pygame.Rect((0, 0), (800, 500))
+            new_subsurface = self.surface.subsurface(new_subsurface_rect)
+            self.subsurfaces_list.append(new_subsurface)
+        else:
+            for i in range(self.max_sessions[0]):
+                for j in range(self.max_sessions[1]):
+                    new_subsurface_rect = pygame.Rect((500 * j, 500 * i), (500, 500))
+                    new_subsurface = self.surface.subsurface(new_subsurface_rect)
+                    self.subsurfaces_list.append(new_subsurface)
 
         # # Check if any subsurface exists
         # if not self.subsurfaces_list:
@@ -324,3 +339,211 @@ class DisplayHelper:
     def draw_on_screen(self, surface, position):
         if position <= 3:
             self.subsurfaces_list[position].blit(surface, (0, 0))
+
+
+class QLearningHelper():
+    '''
+    We create a matrix Q of all (action, state)-pairs. The matrix Q has dimensions 3x4^x with x as the size of the
+    localfield. x = 8 for the case of a 3x3 view around the head of the snake.
+
+    Matrix Q:
+    First row corresponds to a left turn
+    Second row corresponds to the current direction
+    Third row corresponds to a right turn
+
+
+    0 is a free field (grey)
+    1 is a border (black)
+    2 is a part of the snake (red)
+    3 is a cherry (green)
+
+    Idea of state-to-(index of Q) isomorphism:
+    We read a state as a number with x digits (row first, then next column)
+    -------------
+      0 | 0 | 1
+    -------------
+      3 | H | 1
+    -------------
+      0 | 2 | 1
+    -------------
+    In the center there is always the head of the snake. The field is changed such that the current direction of
+    the snake is always to the top. The state above has the number 00131021 and corresponds to the index 1865.
+    '''
+    LEFTTURN = np.array([(0, 1), (-1, 0)])
+    RIGHTTURN = np.array([(0, -1), (1, 0)])
+    NOTURN = np.array([(1, 0), (0, 1)])
+
+    REWARD_ALIVE = 1
+    REWARD_DIE = -100
+    REWARD_CHERRY = 1000
+
+    GAMMARATE = 0.9
+
+    # Number of field_types -> Wall, Free, Snake, Cherry
+    n_fieldtypes = 4
+
+    def __init__(self, size_of_local_matrix=3, max_random_steps=500):
+        self.localmatrix_size = size_of_local_matrix
+        self.localmatrix_neighbors = self.localmatrix_size ** 2 - 1
+        self.Q = np.zeros((3, QLearningHelper.n_fieldtypes ** self.localmatrix_neighbors))
+
+        if max_random_steps > 0:
+            self.max_amount_of_steps_with_random = 500
+            self.rand_step = True
+        elif max_random_steps == 0:
+            self.max_amount_of_steps_with_random = 0
+            self.rand_step = False
+        elif max_random_steps < 0:
+            self.max_amount_of_steps_with_random = -1
+
+        self.amount_of_steps_with_random = 0
+
+        self.old_turn = ()
+        self.old_Qindex = -1
+        self.new_turn = ()
+        self.new_Qindex = -1
+
+    @staticmethod
+    def Qindex_to_localfield(Qindex):
+        localfield = np.base_repr(Qindex, base=QLearningHelper.n_fieldtypes)
+        return localfield
+
+    @staticmethod
+    def localfield_to_Qindex(localfield):
+        Qindex = np.int(str(localfield), QLearningHelper.n_fieldtypes)
+        return Qindex
+
+    @staticmethod
+    def convert_color_to_int(color):
+        ''' 0 is a free field (grey)
+        1 is a border (black)
+        2 is a part of the snake (red)
+        3 is a cherry (green)
+        '''
+        if color == mycolors.black:
+            code = 1
+        elif color == mycolors.red:
+            code = 2
+        elif color == mycolors.green:
+            code = 3
+        elif color == mycolors.blue:
+            code = -1
+        else:
+            code = 0
+        return code
+
+    @staticmethod
+    def get_indexQ(color_matrix, coor_head, direction):
+        steps = 1
+        start = coor_head - steps
+        end = coor_head + steps + 1
+
+        color_matrix_int = list(list(map(QLearningHelper.convert_color_to_int, row)) for row in color_matrix)
+        color_matrix_int = np.array(color_matrix_int)
+        localmatrix_int = color_matrix_int[start[1]:end[1], start[0]:end[0]]
+
+        if np.array_equal(direction, np.array([1, 0])):
+            localmatrix = np.rot90(localmatrix_int)
+        elif np.array_equal(direction, np.array([-1, 0])):
+            localmatrix = np.rot90(localmatrix_int, 3)
+        elif np.array_equal(direction, np.array([0, 1])):
+            localmatrix = np.rot90(localmatrix_int, 2)
+        elif np.array_equal(direction, np.array([0, -1])):
+            localmatrix = localmatrix_int
+
+        indexQ = QLearningHelper.get_indexQ_from_localmatrix(localmatrix)
+        return indexQ
+
+    @staticmethod
+    def get_indexQ_from_localmatrix(localmatrix):
+        localfield_str = ''
+        for m in range(np.shape(localmatrix)[0]):
+            for n in range(np.shape(localmatrix)[1]):
+                if m == n and m == 1:
+                    pass
+                else:
+                    localfield_str += str(localmatrix[m, n])
+
+        index_localmatrix = QLearningHelper.localfield_to_Qindex(localfield_str)
+        return index_localmatrix
+
+    def get_speed(self):
+        return np.array([100,0])
+
+    def get_turn(self, indexQ):
+        next_turn = None
+        if self.max_amount_of_steps_with_random == -1:
+            if random.randint(1, 10) < 2:
+                self.rand_step = True
+            else:
+                self.rand_step = False
+            # print(self.rand_step)
+
+        if self.amount_of_steps_with_random < self.max_amount_of_steps_with_random or self.rand_step:
+            rnd = random.randint(1, 3)
+            if rnd == 1:
+                next_turn = QLearningHelper.LEFTTURN
+            elif rnd == 3:
+                next_turn = QLearningHelper.RIGHTTURN
+            else:
+                next_turn = QLearningHelper.NOTURN
+            self.amount_of_steps_with_random += 1
+            # print('random step')
+        else:
+            q_values = self.Q[:, indexQ]
+            #print(q_values)
+            arg_max = np.argmax(q_values)
+
+            if arg_max == 0:
+                next_turn = QLearningHelper.LEFTTURN
+            elif arg_max == 1:
+                next_turn = QLearningHelper.NOTURN
+            elif arg_max == 2:
+                next_turn = QLearningHelper.RIGHTTURN
+
+        return next_turn
+
+    @staticmethod
+    def turn_to_int(turn):
+        if np.all(turn == QLearningHelper.LEFTTURN):
+            x = 0
+        elif np.all(turn == QLearningHelper.NOTURN):
+            x = 1
+        elif np.all(turn == QLearningHelper.RIGHTTURN):
+            x = 2
+        return x
+
+    def update_Q(self, reward):
+        old_action = QLearningHelper.turn_to_int(self.old_turn)
+        if reward == -1:
+            reward = QLearningHelper.REWARD_DIE
+            q_new = reward
+        else:
+            if reward == None:
+                reward = QLearningHelper.REWARD_ALIVE
+            elif reward == 1:
+                reward = QLearningHelper.REWARD_CHERRY
+            q_new = reward + QLearningHelper.GAMMARATE * np.max(self.Q[:, self.new_Qindex])
+
+        self.Q[old_action, self.old_Qindex] = q_new
+        # print(q_new)
+
+    def save(self, filename):
+        ''' Saves a numpy array into a file with .npy ending'''
+        np.save(filename, self.Q)
+        # print('File saved')
+
+    def reset(self, filename):
+        self.Q = np.zeros((3, QLearningHelper.n_fieldtypes ** self.localmatrix_neighbors))
+        self.save(filename)
+        #print('File reset')
+
+    def load(self, filename):
+        ''' Loads a numpy array from a .npy file'''
+
+        if filename[-4::1] == '.npy':
+            self.Q = np.load(filename)
+        else:
+            filename = filename + '.npy'
+            self.Q = np.load(filename)
+        #print('File loaded')
