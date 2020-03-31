@@ -35,14 +35,10 @@ class TrafficAgents:
             self.image = pygame.image.load('car_sprite_enemy.png')
             pos_y = -self.image.get_height()
             self.speed = np.array([0, 1])
-        else:
+        elif self.agent_type == 'player':
             self.image = pygame.image.load('car_sprite.png')
             pos_y = self._play_area[1] - self.image.get_height()
             self.speed = np.array([0, 0])
-            if self.agent_type == 'player':
-                pass
-            elif agent_type == 'qlearner':
-                self.qlearner = QLearningHelper()
 
         self.position = np.array([self.get_pos_x_from_lane(), pos_y])
         self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image.get_width(),
@@ -55,11 +51,9 @@ class TrafficAgents:
         return int(
             round((self.position[0] - (self._lane_width - self.image.get_width()) / 2) / self._lane_width, 1) + 1)
 
-    def update_position(self, manual_player_speed):
+    def update_position(self, speed=None):
         if self.agent_type == 'player':
-            self.speed = manual_player_speed
-        elif self.agent_type == 'qlearner':
-            self.speed = self.qlearner.get_speed()
+            self.speed = speed
 
         new_position = self.position + self.speed
 
@@ -97,6 +91,7 @@ class GameSession:
             number_of_lanes: integer
             agent_list: agent[0] is always the player
             man_player_speed: to handle inputs and move the car
+            player_type: player or qlearner
 
             t: number of ticks of the games
 
@@ -125,7 +120,8 @@ class GameSession:
 
     _number_of_sessions = 0
 
-    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw=False):
+    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw=False,
+                 player_type = 'qlearner'):
         """ """
 
         # init game_clock
@@ -142,6 +138,10 @@ class GameSession:
         self.number_of_lanes = number_of_lanes
         self.agent_list = []
         self.man_player_speed = np.array([0, 0])
+        self.player_type = player_type
+        if self.player_type == 'qlearner':
+            self.qlearner = QLearningHelper()
+
         self.t = 0
         self.spawning_probability = 0
 
@@ -156,7 +156,7 @@ class GameSession:
             self.surface = None
 
         self.agent_list.append(TrafficAgents(play_area=self.req_size, lane_width=self.lane_width, starting_lane=3,
-                                             agent_type='qlearner'))
+                                             agent_type='player'))
 
         self.live = True
 
@@ -190,11 +190,12 @@ class GameSession:
         for event in events:
             if event.type == pygame.QUIT:
                 self.live = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    self.man_player_speed[0] = -self.lane_width
-                if event.key == pygame.K_RIGHT:
-                    self.man_player_speed[0] = self.lane_width
+            if self.player_type == 'player':
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        self.man_player_speed[0] = -self.lane_width
+                    if event.key == pygame.K_RIGHT:
+                        self.man_player_speed[0] = self.lane_width
 
     def update_positions(self):
         for i, agent in enumerate(self.agent_list):
@@ -250,10 +251,14 @@ class GameSession:
             self.tick()
             self.spawn_new_enemy()
             self.handle_events(events)
+            if self.player_type == 'qlearner':
+                self.man_player_speed = self.qlearner.get_speed()
             self.update_positions()
             self.draw_surface()
-            if self.check_collisions_with_player():
+            if collision := self.check_collisions_with_player():
                 self.end_session()
+            if self.player_type == 'qlearner':
+                self.qlearner.update_Q(collision)
 
 
 class DisplayHelper:
@@ -343,43 +348,29 @@ class DisplayHelper:
 
 class QLearningHelper():
     '''
-    We create a matrix Q of all (action, state)-pairs. The matrix Q has dimensions 3x4^x with x as the size of the
-    localfield. x = 8 for the case of a 3x3 view around the head of the snake.
+    Main Idea: State of game given by (x, y, z), where
+        x is the left lane
+        y is the current lane
+        z is the right lane
 
-    Matrix Q:
-    First row corresponds to a left turn
-    Second row corresponds to the current direction
-    Third row corresponds to a right turn
+    possible values:
+        0 free lane
+        1 enemy midrange
+        2 enemy close
+        3 wall
 
-
-    0 is a free field (grey)
-    1 is a border (black)
-    2 is a part of the snake (red)
-    3 is a cherry (green)
-
-    Idea of state-to-(index of Q) isomorphism:
-    We read a state as a number with x digits (row first, then next column)
-    -------------
-      0 | 0 | 1
-    -------------
-      3 | H | 1
-    -------------
-      0 | 2 | 1
-    -------------
-    In the center there is always the head of the snake. The field is changed such that the current direction of
-    the snake is always to the top. The state above has the number 00131021 and corresponds to the index 1865.
     '''
-    LEFTTURN = np.array([(0, 1), (-1, 0)])
-    RIGHTTURN = np.array([(0, -1), (1, 0)])
-    NOTURN = np.array([(1, 0), (0, 1)])
+
+    LEFTTURN = np.array([(-100, 0)])
+    RIGHTTURN = np.array([(100, 0)])
+    NOTURN = np.array([(0,0)])
 
     REWARD_ALIVE = 1
     REWARD_DIE = -100
-    REWARD_CHERRY = 1000
 
     GAMMARATE = 0.9
 
-    # Number of field_types -> Wall, Free, Snake, Cherry
+    # Number of field_types ->
     n_fieldtypes = 4
 
     def __init__(self, size_of_local_matrix=3, max_random_steps=500):
@@ -412,25 +403,6 @@ class QLearningHelper():
     def localfield_to_Qindex(localfield):
         Qindex = np.int(str(localfield), QLearningHelper.n_fieldtypes)
         return Qindex
-
-    @staticmethod
-    def convert_color_to_int(color):
-        ''' 0 is a free field (grey)
-        1 is a border (black)
-        2 is a part of the snake (red)
-        3 is a cherry (green)
-        '''
-        if color == mycolors.black:
-            code = 1
-        elif color == mycolors.red:
-            code = 2
-        elif color == mycolors.green:
-            code = 3
-        elif color == mycolors.blue:
-            code = -1
-        else:
-            code = 0
-        return code
 
     @staticmethod
     def get_indexQ(color_matrix, coor_head, direction):
@@ -469,7 +441,6 @@ class QLearningHelper():
 
     def get_speed(self):
         random_number = np.random.randint(0, 3)
-        print(random_number)
         if  random_number == 0:
             speed = np.array([-100, 0])
         elif random_number == 1:
