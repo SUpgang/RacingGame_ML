@@ -119,6 +119,9 @@ class GameSession:
     """
 
     _number_of_sessions = 0
+    CLOSE = 100
+    MEDIUM = 250
+    FAR = 400
 
     def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw=False,
                  player_type = 'qlearner'):
@@ -185,6 +188,13 @@ class GameSession:
         else:
             return []
 
+    def get_max_y_coord_of_agents_at_lane(self, lane, default=0):
+        if len(self.agent_list) > 0:
+            list_without_player = [agent.position[1] for agent in self.agent_list if agent.lane == lane]
+            return max(list_without_player[1:], default=default)
+        else:
+            return default
+
     def handle_events(self, events):
         """For events like quit or userinputs"""
         for event in events:
@@ -203,6 +213,27 @@ class GameSession:
                 self.agent_list.pop(i)
             elif i == 0:
                 self.man_player_speed = np.array([0, 0])
+                
+
+    def get_state(self):
+        state = np.zeros(3)
+        max_y_diff_surrounding = np.zeros(3)
+
+        for i in range(len(max_y_diff_surrounding)):
+            max_y_diff_surrounding[i] = self.get_max_y_coord_of_agents_at_lane(self.agent_list[0].lane-1+i)
+
+        for i in range(len(state)):
+            if self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.CLOSE:
+                state[i] = 2
+            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.CLOSE) and (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.MEDIUM):
+                state[i] = 1
+            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.MEDIUM) and (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.FAR):
+                state[i] = 0
+        if self.agent_list[0].lane == 1:
+            state[0] = 3
+        if self.agent_list[0].lane == self.number_of_lanes:
+            state[2] = 3
+        return state
 
     def check_collisions_with_player(self):
         enemies_at_lane = self.get_list_of_agents_at_lane(self.agent_list[0].lane)

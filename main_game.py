@@ -14,6 +14,7 @@ while any([session.live for session in session_list]):
     events = pygame.event.get()
     for session in session_list:
         if session.live:
+            session.get_state()
             session.gameloop(events)
             my_displayhelper.draw_on_screen(session.get_surface(), session.session_id)
     pygame.display.flip()
