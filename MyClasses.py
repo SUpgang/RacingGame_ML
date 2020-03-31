@@ -468,7 +468,16 @@ class QLearningHelper():
         return index_localmatrix
 
     def get_speed(self):
-        return np.array([100,0])
+        random_number = np.random.randint(0, 3)
+        print(random_number)
+        if  random_number == 0:
+            speed = np.array([-100, 0])
+        elif random_number == 1:
+            speed = np.array([0,0])
+        elif random_number == 2:
+            speed = np.array([100, 0])
+
+        return speed
 
     def get_turn(self, indexQ):
         next_turn = None
