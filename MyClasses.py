@@ -119,11 +119,11 @@ class GameSession:
     """
 
     _number_of_sessions = 0
-    CLOSE = 100
-    MEDIUM = 250
+    CLOSE = 150
+    MEDIUM = 300
     FAR = 400
 
-    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw=False,
+    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=30, draw=False,
                  player_type = 'qlearner'):
         """ """
 
@@ -216,7 +216,7 @@ class GameSession:
                 
 
     def get_state(self):
-        state = np.zeros(3)
+        state = np.array([0, 0, 0])
         max_y_diff_surrounding = np.zeros(3)
 
         for i in range(len(max_y_diff_surrounding)):
@@ -225,14 +225,17 @@ class GameSession:
         for i in range(len(state)):
             if self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.CLOSE:
                 state[i] = 2
-            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.CLOSE) and (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.MEDIUM):
+            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.CLOSE) and \
+                    (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.MEDIUM):
                 state[i] = 1
-            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.MEDIUM) and (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.FAR):
+            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.MEDIUM) and \
+                    (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.FAR):
                 state[i] = 0
         if self.agent_list[0].lane == 1:
             state[0] = 3
         if self.agent_list[0].lane == self.number_of_lanes:
             state[2] = 3
+
         return state
 
     def check_collisions_with_player(self):
@@ -283,7 +286,7 @@ class GameSession:
             self.spawn_new_enemy()
             self.handle_events(events)
             if self.player_type == 'qlearner':
-                self.man_player_speed = self.qlearner.get_speed()
+                self.man_player_speed = self.qlearner.get_speed(self.get_state())
             self.update_positions()
             self.draw_surface()
             if collision := self.check_collisions_with_player():
@@ -461,17 +464,19 @@ class QLearningHelper():
     def get_indexQ_from_localmatrix(localmatrix):
         localfield_str = ''
         for m in range(np.shape(localmatrix)[0]):
-            for n in range(np.shape(localmatrix)[1]):
-                if m == n and m == 1:
-                    pass
-                else:
-                    localfield_str += str(localmatrix[m, n])
+            if m == 1:
+                pass
+            else:
+                localfield_str += str(localmatrix[m])
 
         index_localmatrix = QLearningHelper.localfield_to_Qindex(localfield_str)
         return index_localmatrix
 
-    def get_speed(self):
-        random_number = np.random.randint(0, 3)
+    def get_speed(self, game_state):
+
+        indexQ = QLearningHelper.get_indexQ_from_localmatrix(game_state)
+        print(indexQ)
+        random_number = 1 #np.random.randint(0, 3)
         if  random_number == 0:
             speed = np.array([-100, 0])
         elif random_number == 1:
@@ -525,6 +530,9 @@ class QLearningHelper():
         return x
 
     def update_Q(self, reward):
+        pass
+
+    def update_Q_old(self, reward):
         old_action = QLearningHelper.turn_to_int(self.old_turn)
         if reward == -1:
             reward = QLearningHelper.REWARD_DIE
