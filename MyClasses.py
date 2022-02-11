@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 import mycolors
+import random
 
 
 class TrafficAgents:
@@ -30,14 +31,14 @@ class TrafficAgents:
         self._lane_width = lane_width
         self._play_area = play_area
         self.agent_type = agent_type
-        if agent_type == 'player':
-            self.image = pygame.image.load('car_sprite.png')
-            pos_y = self._play_area[1] - self.image.get_height()
-            self.speed = np.array([0, 0])
-        else:
+        if agent_type == 'enemy':
             self.image = pygame.image.load('car_sprite_enemy.png')
             pos_y = -self.image.get_height()
             self.speed = np.array([0, 1])
+        elif self.agent_type == 'player':
+            self.image = pygame.image.load('car_sprite.png')
+            pos_y = self._play_area[1] - self.image.get_height()
+            self.speed = np.array([0, 0])
 
         self.position = np.array([self.get_pos_x_from_lane(), pos_y])
         self.collision_rect = pygame.Rect((self.position[0], self.position[1]), (self.image.get_width(),
@@ -50,9 +51,9 @@ class TrafficAgents:
         return int(
             round((self.position[0] - (self._lane_width - self.image.get_width()) / 2) / self._lane_width, 1) + 1)
 
-    def update_position(self, manual_player_speed):
+    def update_position(self, speed=None):
         if self.agent_type == 'player':
-            self.speed = manual_player_speed
+            self.speed = speed
 
         new_position = self.position + self.speed
 
@@ -90,6 +91,7 @@ class GameSession:
             number_of_lanes: integer
             agent_list: agent[0] is always the player
             man_player_speed: to handle inputs and move the car
+            player_type: player or qlearner
 
             t: number of ticks of the games
 
@@ -117,8 +119,12 @@ class GameSession:
     """
 
     _number_of_sessions = 0
+    CLOSE = 150
+    MEDIUM = 300
+    FAR = 400
 
-    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=120, draw=False):
+    def __init__(self, number_of_lanes=5, lane_sprite='street_sprite_2.png', fps=30, draw=False,
+                 player_type = 'qlearner'):
         """ """
 
         # init game_clock
@@ -135,6 +141,10 @@ class GameSession:
         self.number_of_lanes = number_of_lanes
         self.agent_list = []
         self.man_player_speed = np.array([0, 0])
+        self.player_type = player_type
+        if self.player_type == 'qlearner':
+            self.qlearner = QLearningHelper()
+
         self.t = 0
         self.spawning_probability = 0
 
@@ -178,16 +188,24 @@ class GameSession:
         else:
             return []
 
+    def get_max_y_coord_of_agents_at_lane(self, lane, default=0):
+        if len(self.agent_list) > 0:
+            list_without_player = [agent.position[1] for agent in self.agent_list if agent.lane == lane]
+            return max(list_without_player[1:], default=default)
+        else:
+            return default
+
     def handle_events(self, events):
         """For events like quit or userinputs"""
         for event in events:
             if event.type == pygame.QUIT:
                 self.live = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    self.man_player_speed[0] = -self.lane_width
-                if event.key == pygame.K_RIGHT:
-                    self.man_player_speed[0] = self.lane_width
+            if self.player_type == 'player':
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        self.man_player_speed[0] = -self.lane_width
+                    if event.key == pygame.K_RIGHT:
+                        self.man_player_speed[0] = self.lane_width
 
     def update_positions(self):
         for i, agent in enumerate(self.agent_list):
@@ -195,6 +213,30 @@ class GameSession:
                 self.agent_list.pop(i)
             elif i == 0:
                 self.man_player_speed = np.array([0, 0])
+                
+
+    def get_state(self):
+        state = np.array([0, 0, 0])
+        max_y_diff_surrounding = np.zeros(3)
+
+        for i in range(len(max_y_diff_surrounding)):
+            max_y_diff_surrounding[i] = self.get_max_y_coord_of_agents_at_lane(self.agent_list[0].lane-1+i)
+
+        for i in range(len(state)):
+            if self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.CLOSE:
+                state[i] = 2
+            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.CLOSE) and \
+                    (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.MEDIUM):
+                state[i] = 1
+            if (self.agent_list[0].position[1]-max_y_diff_surrounding[i] > GameSession.MEDIUM) and \
+                    (self.agent_list[0].position[1]-max_y_diff_surrounding[i] <= GameSession.FAR):
+                state[i] = 0
+        if self.agent_list[0].lane == 1:
+            state[0] = 3
+        if self.agent_list[0].lane == self.number_of_lanes:
+            state[2] = 3
+
+        return state
 
     def check_collisions_with_player(self):
         enemies_at_lane = self.get_list_of_agents_at_lane(self.agent_list[0].lane)
@@ -243,10 +285,14 @@ class GameSession:
             self.tick()
             self.spawn_new_enemy()
             self.handle_events(events)
+            if self.player_type == 'qlearner':
+                self.man_player_speed = self.qlearner.get_speed(self.get_state())
             self.update_positions()
             self.draw_surface()
-            if self.check_collisions_with_player():
+            if collision := self.check_collisions_with_player():
                 self.end_session()
+            if self.player_type == 'qlearner':
+                self.qlearner.update_Q(collision)
 
 
 class DisplayHelper:
@@ -271,7 +317,10 @@ class DisplayHelper:
         # init pygame
         pygame.init()
         if screen_size[0] == 0 or screen_size[1] == 0:
-            screen_size = (1000, 1000)
+            if number_of_sessions == 1:
+                screen_size = (800, 500)
+            else:
+                screen_size = (1000, 1000)
         self.screen = None
         self.surface = None
         self.set_screen_size(screen_size)
@@ -279,19 +328,24 @@ class DisplayHelper:
         self.max_sessions = (2, 2)
         self.subsurfaces_list = []
 
-        self.init_subsurface()
+        self.init_subsurface(number_of_sessions)
 
     def set_screen_size(self, new_size):
         self.screen = pygame.display.set_mode(new_size)
         self.surface = pygame.display.get_surface()
 
-    def init_subsurface(self):
+    def init_subsurface(self, number_of_sessions):
 
-        for i in range(self.max_sessions[0]):
-            for j in range(self.max_sessions[1]):
-                new_subsurface_rect = pygame.Rect((500 * j, 500 * i), (500, 500))
-                new_subsurface = self.surface.subsurface(new_subsurface_rect)
-                self.subsurfaces_list.append(new_subsurface)
+        if number_of_sessions == 1:
+            new_subsurface_rect = pygame.Rect((0, 0), (800, 500))
+            new_subsurface = self.surface.subsurface(new_subsurface_rect)
+            self.subsurfaces_list.append(new_subsurface)
+        else:
+            for i in range(self.max_sessions[0]):
+                for j in range(self.max_sessions[1]):
+                    new_subsurface_rect = pygame.Rect((500 * j, 500 * i), (500, 500))
+                    new_subsurface = self.surface.subsurface(new_subsurface_rect)
+                    self.subsurfaces_list.append(new_subsurface)
 
         # # Check if any subsurface exists
         # if not self.subsurfaces_list:
@@ -324,3 +378,191 @@ class DisplayHelper:
     def draw_on_screen(self, surface, position):
         if position <= 3:
             self.subsurfaces_list[position].blit(surface, (0, 0))
+
+
+class QLearningHelper():
+    '''
+    Main Idea: State of game given by (x, y, z), where
+        x is the left lane
+        y is the current lane
+        z is the right lane
+
+    possible values:
+        0 free lane
+        1 enemy midrange
+        2 enemy close
+        3 wall
+
+    '''
+
+    LEFTTURN = np.array([(-100, 0)])
+    RIGHTTURN = np.array([(100, 0)])
+    NOTURN = np.array([(0,0)])
+
+    REWARD_ALIVE = 1
+    REWARD_DIE = -100
+
+    GAMMARATE = 0.9
+
+    # Number of field_types ->
+    n_fieldtypes = 4
+
+    def __init__(self, size_of_local_matrix=3, max_random_steps=500):
+        self.localmatrix_size = size_of_local_matrix
+        self.localmatrix_neighbors = self.localmatrix_size ** 2 - 1
+        self.Q = np.zeros((3, QLearningHelper.n_fieldtypes ** self.localmatrix_neighbors))
+
+        if max_random_steps > 0:
+            self.max_amount_of_steps_with_random = 500
+            self.rand_step = True
+        elif max_random_steps == 0:
+            self.max_amount_of_steps_with_random = 0
+            self.rand_step = False
+        elif max_random_steps < 0:
+            self.max_amount_of_steps_with_random = -1
+
+        self.amount_of_steps_with_random = 0
+
+        self.old_turn = ()
+        self.old_Qindex = -1
+        self.new_turn = ()
+        self.new_Qindex = -1
+
+    @staticmethod
+    def Qindex_to_localfield(Qindex):
+        localfield = np.base_repr(Qindex, base=QLearningHelper.n_fieldtypes)
+        return localfield
+
+    @staticmethod
+    def localfield_to_Qindex(localfield):
+        Qindex = np.int(str(localfield), QLearningHelper.n_fieldtypes)
+        return Qindex
+
+    @staticmethod
+    def get_indexQ(color_matrix, coor_head, direction):
+        steps = 1
+        start = coor_head - steps
+        end = coor_head + steps + 1
+
+        color_matrix_int = list(list(map(QLearningHelper.convert_color_to_int, row)) for row in color_matrix)
+        color_matrix_int = np.array(color_matrix_int)
+        localmatrix_int = color_matrix_int[start[1]:end[1], start[0]:end[0]]
+
+        if np.array_equal(direction, np.array([1, 0])):
+            localmatrix = np.rot90(localmatrix_int)
+        elif np.array_equal(direction, np.array([-1, 0])):
+            localmatrix = np.rot90(localmatrix_int, 3)
+        elif np.array_equal(direction, np.array([0, 1])):
+            localmatrix = np.rot90(localmatrix_int, 2)
+        elif np.array_equal(direction, np.array([0, -1])):
+            localmatrix = localmatrix_int
+
+        indexQ = QLearningHelper.get_indexQ_from_localmatrix(localmatrix)
+        return indexQ
+
+    @staticmethod
+    def get_indexQ_from_localmatrix(localmatrix):
+        localfield_str = ''
+        for m in range(np.shape(localmatrix)[0]):
+            if m == 1:
+                pass
+            else:
+                localfield_str += str(localmatrix[m])
+
+        index_localmatrix = QLearningHelper.localfield_to_Qindex(localfield_str)
+        return index_localmatrix
+
+    def get_speed(self, game_state):
+
+        indexQ = QLearningHelper.get_indexQ_from_localmatrix(game_state)
+        print(indexQ)
+        random_number = 1 #np.random.randint(0, 3)
+        if  random_number == 0:
+            speed = np.array([-100, 0])
+        elif random_number == 1:
+            speed = np.array([0,0])
+        elif random_number == 2:
+            speed = np.array([100, 0])
+
+        return speed
+
+    def get_turn(self, indexQ):
+        next_turn = None
+        if self.max_amount_of_steps_with_random == -1:
+            if random.randint(1, 10) < 2:
+                self.rand_step = True
+            else:
+                self.rand_step = False
+            # print(self.rand_step)
+
+        if self.amount_of_steps_with_random < self.max_amount_of_steps_with_random or self.rand_step:
+            rnd = random.randint(1, 3)
+            if rnd == 1:
+                next_turn = QLearningHelper.LEFTTURN
+            elif rnd == 3:
+                next_turn = QLearningHelper.RIGHTTURN
+            else:
+                next_turn = QLearningHelper.NOTURN
+            self.amount_of_steps_with_random += 1
+            # print('random step')
+        else:
+            q_values = self.Q[:, indexQ]
+            #print(q_values)
+            arg_max = np.argmax(q_values)
+
+            if arg_max == 0:
+                next_turn = QLearningHelper.LEFTTURN
+            elif arg_max == 1:
+                next_turn = QLearningHelper.NOTURN
+            elif arg_max == 2:
+                next_turn = QLearningHelper.RIGHTTURN
+
+        return next_turn
+
+    @staticmethod
+    def turn_to_int(turn):
+        if np.all(turn == QLearningHelper.LEFTTURN):
+            x = 0
+        elif np.all(turn == QLearningHelper.NOTURN):
+            x = 1
+        elif np.all(turn == QLearningHelper.RIGHTTURN):
+            x = 2
+        return x
+
+    def update_Q(self, reward):
+        pass
+
+    def update_Q_old(self, reward):
+        old_action = QLearningHelper.turn_to_int(self.old_turn)
+        if reward == -1:
+            reward = QLearningHelper.REWARD_DIE
+            q_new = reward
+        else:
+            if reward == None:
+                reward = QLearningHelper.REWARD_ALIVE
+            elif reward == 1:
+                reward = QLearningHelper.REWARD_CHERRY
+            q_new = reward + QLearningHelper.GAMMARATE * np.max(self.Q[:, self.new_Qindex])
+
+        self.Q[old_action, self.old_Qindex] = q_new
+        # print(q_new)
+
+    def save(self, filename):
+        ''' Saves a numpy array into a file with .npy ending'''
+        np.save(filename, self.Q)
+        # print('File saved')
+
+    def reset(self, filename):
+        self.Q = np.zeros((3, QLearningHelper.n_fieldtypes ** self.localmatrix_neighbors))
+        self.save(filename)
+        #print('File reset')
+
+    def load(self, filename):
+        ''' Loads a numpy array from a .npy file'''
+
+        if filename[-4::1] == '.npy':
+            self.Q = np.load(filename)
+        else:
+            filename = filename + '.npy'
+            self.Q = np.load(filename)
+        #print('File loaded')
